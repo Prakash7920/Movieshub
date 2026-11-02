@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { mockMovies } from "@/lib/mock-data";
 import { WatchlistToggle } from "@/components/movies/watchlist";
+import { AddHistoryPreview } from "@/components/movies/watch-history";
 
 export function generateStaticParams() {
   return mockMovies.map((movie) => ({ slug: movie.slug }));
@@ -37,6 +38,7 @@ export default async function MovieDetailPage({
           </div>
           <p className="mt-4 text-xs text-gray-400">Audio: {movie.audioLanguages.join(", ")} · Subtitles: {movie.subtitleLanguages.join(", ")}</p>
           <WatchlistToggle slug={movie.slug} />
+          <AddHistoryPreview slug={movie.slug} />
           <div className="mt-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100">
             Playback is disabled in this preview until distribution rights and secure video access are verified.
           </div>
