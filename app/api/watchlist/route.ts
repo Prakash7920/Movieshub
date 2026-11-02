@@ -7,7 +7,8 @@ export const runtime = "nodejs";
 
 async function getUserId() {
   const session = await getServerSession(authOptions);
-  return (session?.user as (typeof session.user & { id?: string }) | undefined)?.id ?? null;
+  const user = session?.user as { id?: string } | undefined;
+  return user?.id ?? null;
 }
 
 export async function GET() {
