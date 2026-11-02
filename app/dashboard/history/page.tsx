@@ -1,42 +1,22 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, PlayCircle } from "lucide-react";
-import { mockWatchHistory } from "@/lib/mock-user";
+import { ArrowLeft } from "lucide-react";
+import { WatchHistoryContent } from "@/components/movies/watch-history";
 
 export default function WatchHistoryPage() {
   return (
     <div className="page-shell pb-16 pt-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-red-200">History</p>
-          <h1 className="mt-2 text-3xl font-bold text-white">Watch History</h1>
+          <p className="text-sm uppercase tracking-[0.2em] text-red-200">Your library</p>
+          <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Watch History</h1>
+          <p className="mt-2 text-sm text-gray-400">Your saved history entries, synced to your account.</p>
         </div>
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white">
-          <ArrowLeft className="h-4 w-4" />
-          Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> Back to dashboard
         </Link>
       </div>
-
-      <div className="space-y-4">
-        {mockWatchHistory.map((entry) => (
-          <div key={entry.id} className="flex flex-col gap-4 rounded-[1.5rem] border border-white/10 bg-card/70 p-4 md:flex-row md:items-center">
-            <div className="relative h-28 w-20 overflow-hidden rounded-xl">
-              <Image src={entry.posterUrl} alt={entry.title} fill className="object-cover" />
-            </div>
-            <div className="flex-1">
-              <p className="text-lg font-semibold text-white">{entry.title}</p>
-              <p className="text-sm text-gray-400">Watched on {entry.lastWatchedAt}</p>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div className="h-full rounded-full bg-red-500" style={{ width: `${entry.progress}%` }} />
-              </div>
-            </div>
-            <button className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-white hover:border-white/20">
-              <PlayCircle className="h-4 w-4" />
-              Resume
-            </button>
-          </div>
-        ))}
-      </div>
+      <WatchHistoryContent />
+      <p className="mt-6 text-xs leading-5 text-gray-500">Preview mode only. No video playback or viewing progress is being tracked. Automatic progress and resume will be connected after licensed streaming is implemented.</p>
     </div>
   );
 }
