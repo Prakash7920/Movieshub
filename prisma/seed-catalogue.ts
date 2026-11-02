@@ -29,14 +29,29 @@ async function main() {
       downloadPermission: false,
     };
 
-    await prisma.movie.upsert({
+    const savedMovie = await prisma.movie.upsert({
       where: { slug: movie.slug },
       update: data,
       create: { ...data, slug: movie.slug },
+      select: { id: true },
+    });
+
+    const genreSlug = movie.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const savedGenre = await prisma.genre.upsert({
+      where: { slug: genreSlug },
+      update: { name: movie.genre },
+      create: { name: movie.genre, slug: genreSlug },
+      select: { id: true },
+    });
+
+    await prisma.movieGenre.upsert({
+      where: { movieId_genreId: { movieId: savedMovie.id, genreId: savedGenre.id } },
+      update: {},
+      create: { movieId: savedMovie.id, genreId: savedGenre.id },
     });
   }
 
-  console.log(`Catalogue seed complete: ${mockMovies.length} metadata records.`);
+  console.log(`Catalogue seed complete: ${mockMovies.length} metadata records and genre links.`);
 }
 
 main()
