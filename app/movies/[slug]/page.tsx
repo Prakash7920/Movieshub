@@ -12,7 +12,23 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const { slug } = await params;
   const movie = await prisma.movie.findFirst({
     where: { slug, isPublished: true, contentStatus: "PUBLISHED" },
-    include: { genres: { include: { genre: true } } },
+    select: {
+      slug: true,
+      titleEn: true,
+      titleTa: true,
+      descriptionEn: true,
+      posterUrl: true,
+      audioLanguages: true,
+      subtitleLanguages: true,
+      releaseYear: true,
+      runtimeMinutes: true,
+      rating: true,
+      genres: {
+        select: {
+          genre: { select: { name: true } },
+        },
+      },
+    },
   });
   if (!movie) notFound();
   const genreNames = movie.genres.map((item) => item.genre.name).join(", ") || "Uncategorised";
