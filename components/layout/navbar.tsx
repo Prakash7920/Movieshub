@@ -59,20 +59,29 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link
+            href="/admin"
+            aria-label="Admin"
+            title="Admin"
+            className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            <span>Admin</span>
+          </Link>
           <LanguageSwitcher />
           {isLoggedIn ? (
             <button
               type="button"
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200 disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" />
-              {isSigningOut ? "Logging out..." : "Logout"}
+              <span className="hidden sm:inline">{isSigningOut ? "Logging out..." : "Logout"}</span>
             </button>
           ) : (
-            <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
+            <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
           )}
         </div>
       </div>
