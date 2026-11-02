@@ -23,8 +23,8 @@ async function main() {
       rating: movie.rating,
       movieType: movie.movieType,
       isFeatured: movie.isFeatured,
-      isPublished: true,
-      contentStatus: ContentStatus.PUBLISHED,
+      isPublished: false,
+      contentStatus: ContentStatus.DRAFT,
       allowedCountries: movie.allowedCountries,
       downloadPermission: false,
     };
