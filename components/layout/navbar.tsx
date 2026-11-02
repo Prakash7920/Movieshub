@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getSession, signOut } from "next-auth/react";
 import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut } from "lucide-react";
 import { LanguageSwitcher } from "@/components/layout/footer";
@@ -17,18 +18,23 @@ const navItems = [
 
 export function Navbar() {
   const { t } = useLanguage();
+  const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     let active = true;
+
     getSession().then((session) => {
       if (active) setIsLoggedIn(Boolean(session?.user));
+    }).catch(() => {
+      if (active) setIsLoggedIn(false);
     });
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
