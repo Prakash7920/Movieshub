@@ -29,9 +29,17 @@ export async function getUserEntitlements(userId: string, now = new Date()): Pro
     where: {
       userId,
       plan: "PREMIUM",
-      status: { in: ["ACTIVE", "TRIALING"] },
-      OR: [{ endDate: null }, { endDate: { gt: now } }],
-      startDate: { lte: now },
+      OR: [
+        { status: "TRIALING" },
+        {
+          status: "ACTIVE",
+          payments: { some: { status: "PAID" } },
+        },
+      ],
+      AND: [
+        { OR: [{ endDate: null }, { endDate: { gt: now } }] },
+        { startDate: { lte: now } },
+      ],
     },
     orderBy: [{ endDate: "desc" }, { createdAt: "desc" }],
     select: { status: true, endDate: true },
