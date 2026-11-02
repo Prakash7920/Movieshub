@@ -6,64 +6,103 @@ import Link from "next/link";
 import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
 import { mockMovies } from "@/lib/mock-data";
 
-const STORAGE_KEY = "movieshub-watchlist";
+type WatchlistItem = { movie: { slug: string } };
 
-function readWatchlist(): string[] {
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
-  } catch {
-    return [];
-  }
+async function loadWatchlist(): Promise<string[]> {
+  const response = await fetch("/api/watchlist", { cache: "no-store" });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? "Unable to load watchlist.");
+  return (data.items as WatchlistItem[]).map((item) => item.movie.slug);
+}
+
+async function saveWatchlistMovie(slug: string, saved: boolean) {
+  const response = await fetch("/api/watchlist", {
+    method: saved ? "POST" : "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slug }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? "Unable to update watchlist.");
 }
 
 export function WatchlistToggle({ slug }: { slug: string }) {
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setSaved(readWatchlist().includes(slug));
-    setReady(true);
+    let active = true;
+    loadWatchlist()
+      .then((slugs) => { if (active) setSaved(slugs.includes(slug)); })
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setReady(true); });
+    return () => { active = false; };
   }, [slug]);
 
-  function toggle() {
-    const current = readWatchlist();
-    const next = current.includes(slug) ? current.filter((item) => item !== slug) : [...current, slug];
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setSaved(next.includes(slug));
+  async function toggle() {
+    if (busy || !ready) return;
+    setBusy(true);
+    setError("");
+    try {
+      await saveWatchlistMovie(slug, !saved);
+      setSaved(!saved);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update watchlist.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={!ready}
-      aria-pressed={saved}
-      className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-white/10 disabled:opacity-60"
-    >
-      {saved ? <BookmarkCheck className="h-4 w-4 text-red-300" /> : <Bookmark className="h-4 w-4" />}
-      {saved ? "Remove from Watchlist" : "Add to Watchlist"}
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!ready || busy}
+        aria-pressed={saved}
+        className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-white/10 disabled:opacity-60"
+      >
+        {saved ? <BookmarkCheck className="h-4 w-4 text-red-300" /> : <Bookmark className="h-4 w-4" />}
+        {busy ? "Saving..." : saved ? "Remove from Watchlist" : "Add to Watchlist"}
+      </button>
+      {error && <p role="status" className="mt-2 text-xs text-red-300">{error}</p>}
+    </div>
   );
 }
 
 export function WatchlistContent() {
   const [slugs, setSlugs] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [removing, setRemoving] = useState("");
 
   useEffect(() => {
-    setSlugs(readWatchlist());
-    setReady(true);
+    let active = true;
+    loadWatchlist()
+      .then((items) => { if (active) setSlugs(items); })
+      .catch((err: Error) => { if (active) setError(err.message); })
+      .finally(() => { if (active) setReady(true); });
+    return () => { active = false; };
   }, []);
 
-  function remove(slug: string) {
-    const next = slugs.filter((item) => item !== slug);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setSlugs(next);
+  async function remove(slug: string) {
+    setRemoving(slug);
+    setError("");
+    try {
+      await saveWatchlistMovie(slug, false);
+      setSlugs((current) => current.filter((item) => item !== slug));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove this movie.");
+    } finally {
+      setRemoving("");
+    }
   }
 
-  if (!ready) {
-    return <p className="py-12 text-center text-sm text-gray-400">Loading your watchlist...</p>;
+  if (!ready) return <p className="py-12 text-center text-sm text-gray-400">Loading your watchlist...</p>;
+
+  if (error && slugs.length === 0) {
+    return <p role="alert" className="py-10 text-center text-sm text-red-300">{error}</p>;
   }
 
   const savedMovies = slugs
@@ -82,23 +121,26 @@ export function WatchlistContent() {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-      {savedMovies.map((movie) => (
-        <article key={movie.slug} className="overflow-hidden rounded-2xl border border-white/10 bg-card/70">
-          <Link href={`/movies/${movie.slug}`} className="block">
-            <div className="relative aspect-[2/3] bg-gray-900">
-              <Image src={movie.posterUrl} alt={movie.titleEn} fill unoptimized className="object-cover" />
+    <div>
+      {error && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+        {savedMovies.map((movie) => (
+          <article key={movie.slug} className="overflow-hidden rounded-2xl border border-white/10 bg-card/70">
+            <Link href={`/movies/${movie.slug}`} className="block">
+              <div className="relative aspect-[2/3] bg-gray-900">
+                <Image src={movie.posterUrl} alt={movie.titleEn} fill unoptimized className="object-cover" />
+              </div>
+            </Link>
+            <div className="p-3">
+              <Link href={`/movies/${movie.slug}`} className="block truncate text-sm font-semibold text-white hover:text-red-200">{movie.titleEn}</Link>
+              <p className="mt-1 text-xs text-gray-400">{movie.releaseYear} · {movie.genre}</p>
+              <button disabled={removing === movie.slug} onClick={() => remove(movie.slug)} className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-red-300 disabled:opacity-50">
+                <Trash2 className="h-3.5 w-3.5" /> {removing === movie.slug ? "Removing..." : "Remove"}
+              </button>
             </div>
-          </Link>
-          <div className="p-3">
-            <Link href={`/movies/${movie.slug}`} className="block truncate text-sm font-semibold text-white hover:text-red-200">{movie.titleEn}</Link>
-            <p className="mt-1 text-xs text-gray-400">{movie.releaseYear} · {movie.genre}</p>
-            <button onClick={() => remove(movie.slug)} className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-red-300">
-              <Trash2 className="h-3.5 w-3.5" /> Remove
-            </button>
-          </div>
-        </article>
-      ))}
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
