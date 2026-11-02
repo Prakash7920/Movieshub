@@ -19,14 +19,21 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
         run: npm install --no-audit --no-fund
       - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
         run: npx prisma generate
       - name: Type check
         run: npm run typecheck
       - name: Build Next.js application
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
           NEXTAUTH_SECRET: ci-only-secret-value-with-more-than-32-characters
           NEXTAUTH_URL: https://example.vercel.app
           NEXT_PUBLIC_APP_URL: https://example.vercel.app
