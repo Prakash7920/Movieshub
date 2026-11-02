@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
 
@@ -38,7 +39,13 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      const requestedPath = searchParams.get("callbackUrl");
+      const destination =
+        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
+          ? requestedPath
+          : "/dashboard";
+
+      router.push(destination);
       router.refresh();
     } catch {
       setServerError("Unable to log in right now. Please try again.");
