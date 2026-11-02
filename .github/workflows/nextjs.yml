@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-
+      - github-pages-static
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,16 +26,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Build Next.js static export
+      - name: Build static site
+        env:
+          NEXT_PUBLIC_APP_URL: https://prakash7920.github.io/movieshub
         run: npm run build
 
       - name: Verify static export
@@ -44,7 +45,6 @@ jobs:
           test -d out
           test -f out/index.html
           echo "STATIC EXPORT: PASS"
-          echo "Generated files:"
           find out -maxdepth 2 -type f | head -50
 
       - name: Upload GitHub Pages artifact
@@ -55,13 +55,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-        
