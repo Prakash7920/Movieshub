@@ -3,7 +3,6 @@ name: Deploy Next.js to GitHub Pages
 on:
   push:
     branches:
-      - main
       - github-pages-static
   workflow_dispatch:
 
