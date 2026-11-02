@@ -9,11 +9,24 @@ export async function GET(request: Request) {
     const search = (searchParams.get("search") ?? "").trim().slice(0, 100);
     const language = searchParams.get("language") ?? "all";
     const genre = searchParams.get("genre") ?? "all";
+    const now = new Date();
+
+    const currentlyLicensed = {
+      isPublished: true,
+      contentStatus: "PUBLISHED" as const,
+      license: {
+        is: {
+          status: "ACTIVE" as const,
+          startDate: { lte: now },
+          expiryDate: { gt: now },
+          allowedCountries: { isEmpty: false },
+        },
+      },
+    };
 
     const movies = await prisma.movie.findMany({
       where: {
-        isPublished: true,
-        contentStatus: "PUBLISHED",
+        ...currentlyLicensed,
         ...(language !== "all" ? { language } : {}),
         ...(search ? {
           OR: [
@@ -36,7 +49,24 @@ export async function GET(request: Request) {
     });
 
     const genres = await prisma.genre.findMany({
-      where: { movies: { some: { movie: { isPublished: true, contentStatus: "PUBLISHED" } } } },
+      where: {
+        movies: {
+          some: {
+            movie: {
+              isPublished: true,
+              contentStatus: "PUBLISHED",
+              license: {
+                is: {
+                  status: "ACTIVE",
+                  startDate: { lte: now },
+                  expiryDate: { gt: now },
+                  allowedCountries: { isEmpty: false },
+                },
+              },
+            },
+          },
+        },
+      },
       select: { name: true, slug: true },
       orderBy: { name: "asc" },
     });
