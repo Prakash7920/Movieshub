@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LoginForm } from "@/components/auth/login-form";
+import { LoginPageGuard } from "@/components/auth/login-page-guard";
 
 export default function LoginPage() {
   return (
@@ -19,6 +20,7 @@ export default function LoginPage() {
 
         <div className="p-8 md:p-12">
           <Suspense fallback={<div className="min-h-64" aria-label="Loading login form" />}>
+            <LoginPageGuard />
             <LoginForm />
           </Suspense>
           <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
