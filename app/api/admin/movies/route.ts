@@ -24,7 +24,7 @@ export async function GET() {
     const [movies, genres] = await Promise.all([
       prisma.movie.findMany({
         orderBy: { updatedAt: "desc" },
-        select: { id: true, slug: true, titleEn: true, titleTa: true, language: true, releaseYear: true, isPublished: true, contentStatus: true, movieType: true, posterUrl: true, genres: { select: { genre: { select: { name: true } } } } },
+        select: { id: true, slug: true, titleEn: true, titleTa: true, descriptionEn: true, descriptionTa: true, language: true, releaseYear: true, runtimeMinutes: true, ageRating: true, rating: true, isPublished: true, contentStatus: true, movieType: true, posterUrl: true, backdropUrl: true, genres: { select: { genre: { select: { name: true } } } } },
       }),
       prisma.genre.findMany({ orderBy: { name: "asc" }, select: { name: true, slug: true } }),
     ]);
