@@ -31,7 +31,7 @@ export default function MoviesPage() {
       return matchesSearch && matchesLanguage && matchesGenre && matchesYear && matchesRating && matchesType;
     });
 
-    return [...filteredMovies].sort((a, b) => {
+    return [...normalized].sort((a, b) => {
       switch (sort) {
         case "Most watched":
           return b.watchCount - a.watchCount;
