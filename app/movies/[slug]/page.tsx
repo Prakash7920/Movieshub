@@ -10,8 +10,21 @@ export const runtime = "nodejs";
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const now = new Date();
   const movie = await prisma.movie.findFirst({
-    where: { slug, isPublished: true, contentStatus: "PUBLISHED" },
+    where: {
+      slug,
+      isPublished: true,
+      contentStatus: "PUBLISHED",
+      license: {
+        is: {
+          status: "ACTIVE",
+          startDate: { lte: now },
+          expiryDate: { gt: now },
+          allowedCountries: { isEmpty: false },
+        },
+      },
+    },
     select: {
       slug: true,
       titleEn: true,
