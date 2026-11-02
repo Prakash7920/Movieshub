@@ -49,7 +49,7 @@ export async function getUserEntitlements(userId: string, now = new Date()): Pro
     premiumCatalog: plan.entitlements.premiumCatalog,
     maxPlaybackQuality: plan.entitlements.maxPlaybackQuality,
     offlineDownloads: false,
-    subscriptionStatus: subscription.status,
+    subscriptionStatus: subscription.status === "TRIALING" ? "TRIALING" : "ACTIVE",
     validUntil: subscription.endDate,
   };
 }
