@@ -1,3 +1,20 @@
+type WatchlistEntry = {
+  id: string;
+  movieId: string;
+  title: string;
+  posterUrl: string;
+  addedAt: string;
+};
+
+type WatchHistoryEntry = {
+  id: string;
+  movieId: string;
+  title: string;
+  posterUrl: string;
+  progress: number;
+  lastWatchedAt: string;
+};
+
 export const mockAuthUser = {
   id: "user_123",
   name: "Prakash Kumar",
