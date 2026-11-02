@@ -29,24 +29,39 @@ export async function getUserEntitlements(userId: string, now = new Date()): Pro
     where: {
       userId,
       plan: "PREMIUM",
-      OR: [
-        { status: "TRIALING" },
-        {
-          status: "ACTIVE",
-          payments: { some: { status: "PAID" } },
-        },
-      ],
+      status: { in: ["ACTIVE", "TRIALING"] },
       AND: [
         { OR: [{ endDate: null }, { endDate: { gt: now } }] },
         { startDate: { lte: now } },
       ],
     },
     orderBy: [{ endDate: "desc" }, { createdAt: "desc" }],
-    select: { status: true, endDate: true },
+    select: {
+      status: true,
+      endDate: true,
+      price: true,
+      payments: {
+        where: { status: "PAID" },
+        select: { amount: true, currency: true },
+      },
+    },
   });
 
   if (!subscription) {
     return freeEntitlements();
+  }
+
+  if (subscription.status === "ACTIVE") {
+    const expectedAmountPaise = Math.round(subscription.price * 100);
+    const hasMatchingPayment = subscription.payments.some(
+      (payment) =>
+        payment.currency === "INR" &&
+        Math.round(payment.amount * 100) === expectedAmountPaise,
+    );
+
+    if (!hasMatchingPayment) {
+      return freeEntitlements();
+    }
   }
 
   const plan = SUBSCRIPTION_PLANS.PREMIUM;
