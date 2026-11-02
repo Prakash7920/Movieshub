@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LoginForm } from "@/components/auth/login-form";
@@ -17,7 +18,9 @@ export default function LoginPage() {
         </div>
 
         <div className="p-8 md:p-12">
-          <LoginForm />
+          <Suspense fallback={<div className="min-h-64" aria-label="Loading login form" />}>
+            <LoginForm />
+          </Suspense>
           <div className="mt-4 flex items-center justify-between text-sm text-gray-400">
             <Link href="/auth/register" className="hover:text-white">Create account</Link>
             <Link href="/auth/forgot-password" className="hover:text-white">Forgot password?</Link>
