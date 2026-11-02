@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles } from "lucide-react";
+import { getSession, signOut } from "next-auth/react";
+import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut } from "lucide-react";
 import { LanguageSwitcher } from "@/components/layout/footer";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -15,6 +17,23 @@ const navItems = [
 
 export function Navbar() {
   const { t } = useLanguage();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getSession().then((session) => {
+      if (active) setIsLoggedIn(Boolean(session?.user));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut({ callbackUrl: "/" });
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
@@ -36,7 +55,19 @@ export function Navbar() {
         </nav>
         <div className="flex items-center gap-3">
           <LanguageSwitcher />
-          <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200 disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" />
+              {isSigningOut ? "Logging out..." : "Logout"}
+            </button>
+          ) : (
+            <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
+          )}
         </div>
       </div>
     </header>
