@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -91,7 +92,7 @@ model User {
   payments         Payment[]
   reviews          Review[]
   reports          Report[]
-  recommendations  Recommendation[]
+  recommendations Recommendation[]
   adminUser        AdminUser?
 
   @@index([email])
@@ -100,14 +101,14 @@ model User {
 }
 
 model Profile {
-  id               String    @id @default(cuid())
-  userId           String
-  displayName      String?
+  id                 String   @id @default(cuid())
+  userId             String
+  displayName        String?
   languagePreference String   @default("en")
-  avatarUrl        String?
-  themePreference  String?   @default("dark")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  avatarUrl          String?
+  themePreference    String?  @default("dark")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -115,70 +116,70 @@ model Profile {
 }
 
 model Category {
-  id          String            @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
-  slug        String            @unique
+  slug        String          @unique
   description String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
-  movies      MovieCategory[]
+  movies MovieCategory[]
 
   @@index([slug])
 }
 
 model Genre {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
-  slug        String      @unique
+  slug        String       @unique
   description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  movies      MovieGenre[]
+  movies MovieGenre[]
 
   @@index([slug])
 }
 
 model Movie {
-  id                 String          @id @default(cuid())
+  id                 String        @id @default(cuid())
   titleEn            String
   titleTa            String
-  slug               String          @unique
+  slug               String        @unique
   descriptionEn      String
   descriptionTa      String
   posterUrl          String
   backdropUrl        String
   trailerUrl         String?
   videoUrl           String?
-  language           String          @default("ta")
+  language           String        @default("ta")
   audioLanguages     String[]
   subtitleLanguages  String[]
   releaseYear        Int
   runtimeMinutes     Int
   ageRating          String
-  rating             Float           @default(0)
-  movieType          MovieType       @default(PREMIUM)
-  isFeatured         Boolean         @default(false)
-  isPublished        Boolean         @default(true)
-  contentStatus      ContentStatus   @default(PUBLISHED)
+  rating             Float         @default(0)
+  movieType          MovieType     @default(PREMIUM)
+  isFeatured         Boolean       @default(false)
+  isPublished        Boolean       @default(true)
+  contentStatus      ContentStatus @default(PUBLISHED)
   allowedCountries   String[]
-  downloadPermission Boolean         @default(false)
+  downloadPermission Boolean       @default(false)
   licenseOwner       String?
   licenseStartDate   DateTime?
   licenseExpiryDate  DateTime?
-  watchCount         Int             @default(0)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  watchCount         Int           @default(0)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  categories         MovieCategory[]
-  genres             MovieGenre[]
-  watchlists         Watchlist[]
-  watchHistory       WatchHistory[]
-  reviews            Review[]
-  reports            Report[]
-  recommendations    Recommendation[]
-  license           License?
+  categories      MovieCategory[]
+  genres          MovieGenre[]
+  watchlists      Watchlist[]
+  watchHistory    WatchHistory[]
+  reviews         Review[]
+  reports         Report[]
+  recommendations Recommendation[]
+  license         License?
 
   @@index([slug])
   @@index([contentStatus])
@@ -193,8 +194,8 @@ model MovieCategory {
   movieId    String
   categoryId String
 
-  movie      Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  movie    Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([movieId, categoryId])
   @@index([movieId])
@@ -205,8 +206,8 @@ model MovieGenre {
   movieId String
   genreId String
 
-  movie   Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-  genre   Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
   @@id([movieId, genreId])
   @@index([movieId])
@@ -219,8 +220,8 @@ model Watchlist {
   movieId   String
   createdAt DateTime @default(now())
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie     Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@unique([userId, movieId])
   @@index([userId])
@@ -228,16 +229,16 @@ model Watchlist {
 }
 
 model WatchHistory {
-  id        String   @id @default(cuid())
-  userId    String
-  movieId   String
-  progress  Int      @default(0)
+  id            String   @id @default(cuid())
+  userId        String
+  movieId       String
+  progress      Int      @default(0)
   lastWatchedAt DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie     Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@unique([userId, movieId])
   @@index([userId])
@@ -246,20 +247,20 @@ model WatchHistory {
 }
 
 model Subscription {
-  id            String              @id @default(cuid())
-  userId        String
-  plan          PlanType
-  billingCycle  BillingCycle
-  status        SubscriptionStatus  @default(ACTIVE)
-  startDate     DateTime            @default(now())
-  endDate       DateTime?
-  price         Float
-  isAutoRenew   Boolean             @default(true)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id           String             @id @default(cuid())
+  userId       String
+  plan         PlanType
+  billingCycle BillingCycle
+  status       SubscriptionStatus @default(ACTIVE)
+  startDate    DateTime           @default(now())
+  endDate      DateTime?
+  price        Float
+  isAutoRenew  Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments      Payment[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
 
   @@index([userId])
   @@index([status])
@@ -280,8 +281,8 @@ model Payment {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
@@ -306,19 +307,19 @@ model Advertisement {
 }
 
 model License {
-  id             String        @id @default(cuid())
-  movieId        String        @unique
-  owner          String
-  status         LicenseStatus @default(ACTIVE)
-  startDate      DateTime
-  expiryDate     DateTime
+  id              String        @id @default(cuid())
+  movieId         String        @unique
+  owner           String
+  status          LicenseStatus @default(ACTIVE)
+  startDate       DateTime
+  expiryDate      DateTime
   allowedCountries String[]
-  downloadAllowed Boolean      @default(false)
-  notes          String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  downloadAllowed Boolean       @default(false)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  movie          Movie         @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([expiryDate])
@@ -333,8 +334,8 @@ model Review {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie     Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@unique([userId, movieId])
   @@index([movieId])
@@ -342,32 +343,32 @@ model Review {
 }
 
 model Report {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String
   movieId     String?
   type        String
   description String
-  status      String    @default("OPEN")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie       Movie? @relation(fields: [movieId], references: [id], onDelete: SetNull)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie? @relation(fields: [movieId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
 }
 
 model Recommendation {
-  id         String   @id @default(cuid())
-  userId     String
-  movieId    String
-  score      Float    @default(0)
-  reason     String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  movieId   String
+  score     Float    @default(0)
+  reason    String?
+  createdAt DateTime @default(now())
 
-  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movie      Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([score])
@@ -378,7 +379,7 @@ model AdminUser {
   userId    String   @unique
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
