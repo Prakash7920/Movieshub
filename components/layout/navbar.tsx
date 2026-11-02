@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles } from "lucide-react";
 import { LanguageSwitcher } from "@/components/layout/footer";
