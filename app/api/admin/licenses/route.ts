@@ -61,3 +61,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unable to save licence details." }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+  try {
+    const body: unknown = await request.json();
+    if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid review request." }, { status: 400 });
+    const b = body as Record<string, unknown>;
+    if (typeof b.movieId !== "string" || (b.status !== "ACTIVE" && b.status !== "REJECTED")) {
+      return NextResponse.json({ error: "Choose an approval or rejection action." }, { status: 400 });
+    }
+    const license = await prisma.license.findUnique({ where: { movieId: b.movieId } });
+    if (!license) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
+
+    if (b.status === "ACTIVE") {
+      if (b.confirmed !== true || typeof b.agreementReference !== "string" || b.agreementReference.trim().length < 3) {
+        return NextResponse.json({ error: "Approval requires explicit verification confirmation and a real signed-agreement reference." }, { status: 400 });
+      }
+      const now = new Date();
+      if (license.startDate > now || license.expiryDate <= now || !license.allowedCountries.length) {
+        return NextResponse.json({ error: "Cannot approve: licence dates must include today and permitted countries must be recorded." }, { status: 400 });
+      }
+      const reference = b.agreementReference.trim().slice(0, 300);
+      const updated = await prisma.$transaction(async tx => {
+        const result = await tx.license.update({ where: { movieId: b.movieId }, data: { status: LicenseStatus.ACTIVE, notes: [license.notes, "VERIFIED AGREEMENT REFERENCE: " + reference, "VERIFIED BY ADMIN USER ID: " + auth.userId, "VERIFIED AT: " + now.toISOString()].filter(Boolean).join("\n") } });
+        await tx.movie.update({ where: { id: b.movieId }, data: { allowedCountries: license.allowedCountries, licenseOwner: license.owner, licenseStartDate: license.startDate, licenseExpiryDate: license.expiryDate, downloadPermission: false } });
+        return result;
+      });
+      return NextResponse.json({ message: "Licence marked ACTIVE after the admin verification confirmation. Downloads remain disabled.", status: updated.status });
+    }
+
+    if (typeof b.reason !== "string" || b.reason.trim().length < 3) {
+      return NextResponse.json({ error: "Enter a brief rejection reason." }, { status: 400 });
+    }
+    await prisma.license.update({ where: { movieId: b.movieId }, data: { status: LicenseStatus.REJECTED, notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + b.reason.trim().slice(0, 500), "REVIEWED AT: " + new Date().toISOString()].filter(Boolean).join("\n") } });
+    return NextResponse.json({ message: "Licence marked REJECTED. Publishing remains blocked.", status: "REJECTED" });
+  } catch (error) {
+    console.error("Admin licence review failed:", error);
+    return NextResponse.json({ error: "Unable to review licence." }, { status: 500 });
+  }
+}
