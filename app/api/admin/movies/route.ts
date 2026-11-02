@@ -102,3 +102,67 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unable to update movie." }, { status: 500 });
   }
 }
+
+
+export async function PUT(request: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+  try {
+    const body: unknown = await request.json();
+    if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid movie data." }, { status: 400 });
+    const b = body as Record<string, unknown>;
+    if (typeof b.id !== "string") return NextResponse.json({ error: "Movie id is required." }, { status: 400 });
+    const existing = await prisma.movie.findUnique({ where: { id: b.id }, select: { id: true, isPublished: true, contentStatus: true } });
+    if (!existing) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
+    if (existing.isPublished || existing.contentStatus !== ContentStatus.DRAFT) {
+      return NextResponse.json({ error: "Only unpublished draft movies can be edited." }, { status: 409 });
+    }
+    const required = ["titleEn","titleTa","slug","descriptionEn","descriptionTa","language","ageRating","genre"];
+    for (const field of required) if (typeof b[field] !== "string" || !(b[field] as string).trim()) return NextResponse.json({ error: field + " is required." }, { status: 400 });
+    const slug = (b.slug as string).trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return NextResponse.json({ error: "Slug must use lowercase letters, numbers and hyphens." }, { status: 400 });
+    const releaseYear = Number(b.releaseYear), runtimeMinutes = Number(b.runtimeMinutes), rating = Number(b.rating ?? 0);
+    if (!Number.isInteger(releaseYear) || releaseYear < 1888 || releaseYear > new Date().getFullYear() + 5) return NextResponse.json({ error: "Enter a valid release year." }, { status: 400 });
+    if (!Number.isInteger(runtimeMinutes) || runtimeMinutes < 1 || runtimeMinutes > 1000) return NextResponse.json({ error: "Runtime must be between 1 and 1000 minutes." }, { status: 400 });
+    if (!Number.isFinite(rating) || rating < 0 || rating > 10) return NextResponse.json({ error: "Rating must be between 0 and 10." }, { status: 400 });
+    const language = (b.language as string).trim().toLowerCase();
+    if (!/^[a-z]{2,3}$/.test(language)) return NextResponse.json({ error: "Use a valid language code such as ta, te, ml, kn, hi or en." }, { status: 400 });
+    const genreName = (b.genre as string).trim().slice(0, 60);
+    const genreSlug = genreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    await prisma.$transaction(async (tx) => {
+      await tx.movie.update({ where: { id: b.id as string }, data: {
+        titleEn: (b.titleEn as string).trim().slice(0,160), titleTa: (b.titleTa as string).trim().slice(0,160), slug,
+        descriptionEn: (b.descriptionEn as string).trim().slice(0,5000), descriptionTa: (b.descriptionTa as string).trim().slice(0,5000),
+        posterUrl: typeof b.posterUrl === "string" ? b.posterUrl.trim().slice(0,2000) : "",
+        backdropUrl: typeof b.backdropUrl === "string" ? b.backdropUrl.trim().slice(0,2000) : "",
+        language, releaseYear, runtimeMinutes, ageRating: (b.ageRating as string).trim().slice(0,20), rating,
+        genres: { deleteMany: {}, create: { genre: { connectOrCreate: { where: { slug: genreSlug }, create: { name: genreName, slug: genreSlug } } } } },
+      } });
+    });
+    return NextResponse.json({ message: "Draft movie updated successfully." });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
+    console.error("Admin movie edit failed:", error);
+    return NextResponse.json({ error: "Unable to update draft movie." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth) return auth.error;
+  try {
+    const body: unknown = await request.json();
+    const id = body && typeof body === "object" ? (body as Record<string, unknown>).id : null;
+    if (typeof id !== "string") return NextResponse.json({ error: "Movie id is required." }, { status: 400 });
+    const existing = await prisma.movie.findUnique({ where: { id }, select: { id: true, isPublished: true, contentStatus: true } });
+    if (!existing) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
+    if (existing.isPublished || existing.contentStatus !== ContentStatus.DRAFT) {
+      return NextResponse.json({ error: "Only unpublished draft movies can be deleted." }, { status: 409 });
+    }
+    await prisma.movie.delete({ where: { id } });
+    return NextResponse.json({ message: "Draft movie deleted." });
+  } catch (error) {
+    console.error("Admin movie delete failed:", error);
+    return NextResponse.json({ error: "Unable to delete draft movie." }, { status: 500 });
+  }
+}
