@@ -175,7 +175,7 @@ export async function getRecommendationAssistantData(
     return {
       userName: user.name ?? "Viewer",
       preferredLanguage,
-      subscription: activeSubscription,
+      subscription: "FREE",
       watchCount: watchedHistory.length,
       recommendations,
       signals: topSignals,
