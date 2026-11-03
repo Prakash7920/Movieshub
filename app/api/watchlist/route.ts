@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
       })),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watchlist fetch failed:", error);
+    logSafeError("Watchlist fetch failed", error);
     return NextResponse.json({ error: "Unable to load your watchlist." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: "Movie saved to your watchlist.", item }, { status: 201, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watchlist save failed:", error);
+    logSafeError("Watchlist save failed", error);
     return NextResponse.json({ error: "Unable to save this movie right now." }, { status: 500 });
   }
 }
@@ -121,7 +122,7 @@ export async function DELETE(request: Request) {
     await prisma.watchlist.deleteMany({ where: { userId, movie: { slug } } });
     return NextResponse.json({ message: "Movie removed from your watchlist." }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watchlist removal failed:", error);
+    logSafeError("Watchlist removal failed", error);
     return NextResponse.json({ error: "Unable to remove this movie right now." }, { status: 500 });
   }
 }
