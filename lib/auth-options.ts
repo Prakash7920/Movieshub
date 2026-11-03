@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { logSafeError } from "@/lib/security/safe-log";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -43,9 +44,31 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+  events: {
+    async signOut({ token }) {
+      if (token?.jti && token.sub && typeof token.exp === "number") {
+        try {
+          await prisma.revokedSessionToken.upsert({
+            where: { tokenId: token.jti },
+            create: { tokenId: token.jti, userId: token.sub, expiresAt: new Date(token.exp * 1000) },
+            update: { expiresAt: new Date(token.exp * 1000) },
+          });
+        } catch (error) {
+          logSafeError("Session revocation write failed", error);
+        }
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
+      if (token.jti) {
+        const revoked = await prisma.revokedSessionToken.findUnique({
+          where: { tokenId: token.jti },
+          select: { id: true },
+        });
+        if (revoked) delete token.sub;
+      }
       if (token.sub && typeof token.iat === "number") {
         const account = await prisma.user.findUnique({
           where: { id: token.sub },
