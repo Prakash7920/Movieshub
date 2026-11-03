@@ -1,4 +1,4 @@
-name: Vercel build validation
+name: Vercel build and security validation
 
 on:
   push:
@@ -13,29 +13,62 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: movieshub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d movieshub_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/movieshub_test?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/movieshub_test?schema=public
+      NEXTAUTH_SECRET: ci-only-secret-value-with-more-than-32-characters
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      DEMO_MODE: "false"
+      REQUIRE_EMAIL_VERIFICATION: "false"
+      MOVIESHUB_E2E: "true"
+      CI: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: Install dependencies
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
         run: npm install --no-audit --no-fund
+
       - name: Generate Prisma Client
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
         run: npx prisma generate
+
+      - name: Apply migrations to isolated CI database
+        run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
       - name: Type check
         run: npm run typecheck
+
+      - name: Unit and security primitive tests
+        run: npm run test
+
       - name: Build Next.js application
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
-          NEXTAUTH_SECRET: ci-only-secret-value-with-more-than-32-characters
-          NEXTAUTH_URL: https://example.vercel.app
-          NEXT_PUBLIC_APP_URL: https://example.vercel.app
-          DEMO_MODE: "false"
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser authentication and security tests
+        run: npm run test:e2e
