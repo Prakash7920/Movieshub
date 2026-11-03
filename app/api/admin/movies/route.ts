@@ -85,6 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Movie saved as draft. Publish it after reviewing metadata and rights.", movie }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The movie changed during editing. Reload the draft and try again." }, { status: 409 });
     console.error("Admin movie create failed:", error);
     return NextResponse.json({ error: "Unable to create movie." }, { status: 500 });
   }
@@ -199,6 +200,7 @@ export async function DELETE(request: Request) {
     if (deleteResult === "NOT_DRAFT") return NextResponse.json({ error: "Only unpublished draft movies can be deleted." }, { status: 409 });
     return NextResponse.json({ message: "Draft movie deleted." });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The movie changed during deletion. Reload the draft and try again." }, { status: 409 });
     console.error("Admin movie delete failed:", error);
     return NextResponse.json({ error: "Unable to delete draft movie." }, { status: 500 });
   }
