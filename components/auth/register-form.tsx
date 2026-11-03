@@ -44,7 +44,7 @@ export function RegisterForm() {
         return;
       }
 
-      setServerMessage("Account created successfully! You can now log in.");
+      setServerMessage(result.message || "Account created successfully.");
     } catch {
       setServerError("Could not connect to the server. Please check your internet and try again.");
     } finally {
