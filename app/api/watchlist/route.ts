@@ -57,12 +57,21 @@ export async function GET(request: Request) {
             releaseYear: true,
             language: true,
             rating: true,
+            genres: { select: { genre: { select: { name: true } } } },
           },
         },
       },
     });
 
-    return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({
+      items: items.map((item) => ({
+        ...item,
+        movie: {
+          ...item.movie,
+          genre: item.movie.genres.map((entry) => entry.genre.name).join(", ") || "Uncategorised",
+        },
+      })),
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Watchlist fetch failed:", error);
     return NextResponse.json({ error: "Unable to load your watchlist." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
