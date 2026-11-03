@@ -101,6 +101,10 @@ test("registration, login, logout and protected routes work on mobile", async ({
   const revokedSession = await concurrentPage.request.get("/api/subscription/status");
   expect(revokedSession.status()).toBe(401);
   await concurrentContext.close();
+  const anonymousWatchlist = await page.request.get("/api/watchlist", { headers: { "x-vercel-ip-country": "IN" } });
+  const anonymousHistory = await page.request.get("/api/watch-history", { headers: { "x-vercel-ip-country": "IN" } });
+  expect(anonymousWatchlist.status()).toBe(401);
+  expect(anonymousHistory.status()).toBe(401);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/auth\/login/);
 });
