@@ -83,25 +83,39 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Choose an approval or rejection action." }, { status: 400 });
     }
     const movieId = b.movieId as string;
-    const license = await prisma.license.findUnique({ where: { movieId } });
-    if (!license) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
 
     if (b.status === "ACTIVE") {
       if (b.confirmed !== true || typeof b.agreementReference !== "string" || b.agreementReference.trim().length < 3) {
         return NextResponse.json({ error: "Approval requires explicit verification confirmation and a real signed-agreement reference." }, { status: 400 });
       }
-      const now = new Date();
-      if (license.startDate > now || license.expiryDate <= now || !license.allowedCountries.length) {
-        return NextResponse.json({ error: "Cannot approve: licence dates must include today and permitted countries must be recorded." }, { status: 400 });
-      }
       const reference = b.agreementReference.trim().slice(0, 300);
+      const now = new Date();
       const updated = await prisma.$transaction(async tx => {
-        const result = await tx.license.update({ where: { movieId }, data: { status: LicenseStatus.ACTIVE, notes: [license.notes, "VERIFIED AGREEMENT REFERENCE: " + reference, "VERIFIED BY ADMIN USER ID: " + auth.userId, "VERIFIED AT: " + now.toISOString()].filter(Boolean).join("\n") } });
-        await tx.movie.update({ where: { id: movieId }, data: { allowedCountries: license.allowedCountries, licenseOwner: license.owner, licenseStartDate: license.startDate, licenseExpiryDate: license.expiryDate, downloadPermission: false } });
-        return result;
-      });
+        const current = await tx.license.findUnique({ where: { movieId } });
+        if (!current) return { kind: "NOT_FOUND" as const };
+        if (current.startDate > now || current.expiryDate <= now || !current.allowedCountries.length) {
+          return { kind: "INVALID" as const };
+        }
+        const result = await tx.license.update({
+          where: { movieId },
+          data: {
+            status: LicenseStatus.ACTIVE,
+            notes: [current.notes, "VERIFIED AGREEMENT REFERENCE: " + reference, "VERIFIED BY ADMIN USER ID: " + auth.userId, "VERIFIED AT: " + now.toISOString()].filter(Boolean).join("\\n"),
+          },
+        });
+        await tx.movie.update({
+          where: { id: movieId },
+          data: { allowedCountries: current.allowedCountries, licenseOwner: current.owner, licenseStartDate: current.startDate, licenseExpiryDate: current.expiryDate, downloadPermission: false },
+        });
+        return { kind: "UPDATED" as const, status: result.status };
+      }, { isolationLevel: "Serializable" });
+      if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
+      if (updated.kind === "INVALID") return NextResponse.json({ error: "Cannot approve: licence dates must include today and permitted countries must be recorded." }, { status: 400 });
       return NextResponse.json({ message: "Licence marked ACTIVE after the admin verification confirmation. Downloads remain disabled.", status: updated.status });
     }
+
+    const license = await prisma.license.findUnique({ where: { movieId } });
+    if (!license) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
 
     if (typeof b.reason !== "string" || b.reason.trim().length < 3) {
       return NextResponse.json({ error: "Enter a brief rejection reason." }, { status: 400 });
