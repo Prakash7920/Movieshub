@@ -44,24 +44,17 @@ export async function consumeRateLimit(
     data: { count: 1, expiresAt },
   });
 
-  const count = reset.count === 1
-    ? 1
-    : (await prisma.rateLimitBucket.upsert({
+  const bucket = reset.count === 1
+    ? { count: 1, expiresAt }
+    : await prisma.rateLimitBucket.upsert({
         where: { key },
         create: { key, count: 1, expiresAt },
         update: { count: { increment: 1 } },
         select: { count: true, expiresAt: true },
-      })).count;
-
-  const bucket = reset.count === 1
-    ? { count, expiresAt }
-    : await prisma.rateLimitBucket.findUnique({
-        where: { key },
-        select: { count: true, expiresAt: true },
       });
 
-  const effectiveCount = bucket?.count ?? count;
-  const resetAt = bucket?.expiresAt ?? expiresAt;
+  const effectiveCount = bucket.count;
+  const resetAt = bucket.expiresAt;
   const retryAfterSeconds = Math.max(1, Math.ceil((resetAt.getTime() - Date.now()) / 1000));
 
   return {
