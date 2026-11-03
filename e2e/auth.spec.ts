@@ -426,3 +426,25 @@ test("verification resend uses the same response for known and unknown addresses
   expect(unknown.status()).toBe(202);
   expect(await known.json()).toEqual(await unknown.json());
 });
+
+test("account suspension and deletion invalidate existing JWT sessions", async ({ page }) => {
+  const bannedEmail = `banned-${Date.now()}@movieshub-e2e.test`;
+  const bannedUser = await createUser(bannedEmail);
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(bannedEmail);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await prisma.user.update({ where: { id: bannedUser.id }, data: { isBanned: true } });
+  expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
+
+  const deletedEmail = `deleted-${Date.now()}@movieshub-e2e.test`;
+  const deletedUser = await createUser(deletedEmail);
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(deletedEmail);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await prisma.user.delete({ where: { id: deletedUser.id } });
+  expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
+});
