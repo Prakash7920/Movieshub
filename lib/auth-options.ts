@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
+import { randomUUID } from "node:crypto";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
+      if (token.sub && typeof token.sid !== "string") token.sid = randomUUID();
       const tokenId = getSessionRevocationId(token);
       if (tokenId) {
         const revoked = await prisma.revokedSessionToken.findUnique({
