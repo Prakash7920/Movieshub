@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     const userId = typeof token?.sub === "string" ? token.sub : null;
     const tokenId = token ? getSessionRevocationId(token) : null;
+    const hasStableSessionId = typeof token?.sid === "string";
     const expiresAt = typeof token?.exp === "number" ? new Date(token.exp * 1000) : null;
     if (!userId || !tokenId || !expiresAt || expiresAt <= new Date()) {
       return NextResponse.json({ error: "No active session." }, { status: 401 });
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         create: { tokenId, userId, expiresAt },
         update: { expiresAt },
       });
-      if (typeof token.sid !== "string") {
+      if (!hasStableSessionId) {
         // Legacy tokens have no stable session ID; invalidate all older sessions for this account.
         await tx.user.update({ where: { id: userId }, data: { passwordChangedAt: new Date() } });
       }
