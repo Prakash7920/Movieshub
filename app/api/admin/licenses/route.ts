@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { LicenseStatus } from "@prisma/client";
+import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
 
@@ -96,8 +96,24 @@ export async function PATCH(request: Request) {
     if (typeof b.reason !== "string" || b.reason.trim().length < 3) {
       return NextResponse.json({ error: "Enter a brief rejection reason." }, { status: 400 });
     }
-    await prisma.license.update({ where: { movieId }, data: { status: LicenseStatus.REJECTED, notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + b.reason.trim().slice(0, 500), "REVIEWED AT: " + new Date().toISOString()].filter(Boolean).join("\n") } });
-    return NextResponse.json({ message: "Licence marked REJECTED. Publishing remains blocked.", status: "REJECTED" });
+    const reviewedAt = new Date();
+    await prisma.$transaction(async tx => {
+      await tx.license.update({
+        where: { movieId },
+        data: {
+          status: LicenseStatus.REJECTED,
+          notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + b.reason.trim().slice(0, 500), "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\n"),
+        },
+      });
+      const movie = await tx.movie.findUnique({ where: { id: movieId }, select: { isPublished: true } });
+      if (movie?.isPublished) {
+        await tx.movie.update({
+          where: { id: movieId },
+          data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
+        });
+      }
+    });
+    return NextResponse.json({ message: "Licence marked REJECTED. Any published movie was automatically unpublished; re-approval will require a fresh manual publish action.", status: "REJECTED" });
   } catch (error) {
     console.error("Admin licence review failed:", error);
     return NextResponse.json({ error: "Unable to review licence." }, { status: 500 });
