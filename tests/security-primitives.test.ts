@@ -55,10 +55,17 @@ test("state-changing API requests require a same-origin source", () => {
     method: "POST",
     headers: { origin: "https://attacker.example" },
   });
+  // Vercel Preview hostnames are unique and intentionally differ from NEXTAUTH_URL.
+  const previewOrigin = "https://nexafilm-preview-123.vercel.app";
+  const previewRequest = new Request(`${previewOrigin}/api/auth/revoke-session`, {
+    method: "POST",
+    headers: { origin: previewOrigin },
+  });
   const missingOrigin = new Request(`${expectedOrigin}/api/auth/register`, { method: "POST" });
 
   assert.equal(isSameOriginRequest(sameOrigin), true);
   assert.equal(isSameOriginRequest(sameOriginReferer), true);
+  assert.equal(isSameOriginRequest(previewRequest), true);
   assert.equal(isSameOriginRequest(foreignOrigin), false);
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
