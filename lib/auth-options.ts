@@ -49,9 +49,11 @@ export const authOptions: NextAuthOptions = {
       if (token.sub && typeof token.iat === "number") {
         const account = await prisma.user.findUnique({
           where: { id: token.sub },
-          select: { passwordChangedAt: true, isBanned: true },
+          select: { passwordChangedAt: true, isBanned: true, isEmailVerified: true },
         });
-        if (!account || account.isBanned || (account.passwordChangedAt && token.iat * 1000 < account.passwordChangedAt.getTime())) {
+        if (!account || account.isBanned ||
+            (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !account.isEmailVerified) ||
+            (account.passwordChangedAt && token.iat * 1000 < account.passwordChangedAt.getTime())) {
           delete token.sub;
         }
       }
