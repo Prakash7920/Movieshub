@@ -24,7 +24,7 @@ export async function GET() {
     orderBy: { titleEn: "asc" },
     select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
   });
-  return NextResponse.json({ movies });
+  return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }
 
 export async function POST(request: Request) {
@@ -126,7 +126,7 @@ export async function PATCH(request: Request) {
         where: { movieId },
         data: {
           status: LicenseStatus.REJECTED,
-          notes: [current.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + rejectionReason, "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\\n"),
+          notes: [current.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + rejectionReason, "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\n"),
         },
       });
       const movie = await tx.movie.findUnique({ where: { id: movieId }, select: { isPublished: true } });
