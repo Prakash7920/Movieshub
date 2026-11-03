@@ -48,7 +48,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("registration, login, logout and protected routes work on mobile", async ({ page, browser }) => {
+test("registration, login, logout and protected routes work on mobile", async ({ page }) => {
   const email = `register-${Date.now()}@movieshub-e2e.test`;
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/auth/register");
@@ -189,6 +189,8 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "Admin access required" })).toBeVisible();
   const forbidden = await page.request.get("/api/admin/movies");
   expect(forbidden.status()).toBe(403);
 
@@ -200,6 +202,8 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "MoviesHub Admin" })).toBeVisible();
   const adminAccess = await page.request.get("/api/admin/movies");
   expect(adminAccess.status()).toBe(200);
   const adminBody = await adminAccess.json();
@@ -330,15 +334,21 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
 
+  const privateHeaders = {
+    origin: "http://127.0.0.1:3000",
+    "content-type": "application/json",
+    "x-vercel-ip-country": "IN",
+  };
   const saved = await page.request.post("/api/watchlist", {
-    headers: {
-      origin: "http://127.0.0.1:3000",
-      "content-type": "application/json",
-      "x-vercel-ip-country": "IN",
-    },
+    headers: privateHeaders,
     data: { slug, userId: other.id },
   });
   expect(saved.status()).toBe(201);
+  const historySaved = await page.request.post("/api/watch-history", {
+    headers: privateHeaders,
+    data: { slug, progress: 50, userId: other.id },
+  });
+  expect(historySaved.status()).toBe(200);
 
   const ownerList = await page.request.get(`/api/watchlist?userId=${other.id}`, {
     headers: { "x-vercel-ip-country": "IN" },
@@ -346,6 +356,10 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   expect(ownerList.status()).toBe(200);
   const ownerBody = await ownerList.json();
   expect(ownerBody.items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(true);
+  const ownerHistory = await page.request.get(`/api/watch-history?userId=${other.id}`, {
+    headers: { "x-vercel-ip-country": "IN" },
+  });
+  expect((await ownerHistory.json()).items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(true);
 
   await page.locator('header button[aria-label="Logout"]').click();
   await page.goto("/auth/login");
@@ -360,6 +374,10 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   expect(otherList.status()).toBe(200);
   const otherBody = await otherList.json();
   expect(otherBody.items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(false);
+  const otherHistory = await page.request.get("/api/watch-history", {
+    headers: { "x-vercel-ip-country": "IN" },
+  });
+  expect((await otherHistory.json()).items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(false);
 
   await prisma.movie.delete({ where: { id: movie.id } });
 });
