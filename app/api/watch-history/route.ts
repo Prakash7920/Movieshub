@@ -126,7 +126,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
-  if (!hasValidJsonContentType(request, 8 * 1024)) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415 });
+  if (!(await hasValidJsonContentType(request, 8 * 1024))) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415 });
   try {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to edit watch history." }, { status: 401 });
