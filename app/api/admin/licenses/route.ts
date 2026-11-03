@@ -144,6 +144,9 @@ export async function PATCH(request: Request) {
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
     return NextResponse.json({ message: "Licence marked REJECTED. Any published movie was automatically unpublished; re-approval will require a fresh manual publish action.", status: "REJECTED" });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
+      return NextResponse.json({ error: "The licence changed during review. Reload the record and try again." }, { status: 409 });
+    }
     console.error("Admin licence review failed:", error);
     return NextResponse.json({ error: "Unable to review licence." }, { status: 500 });
   }
