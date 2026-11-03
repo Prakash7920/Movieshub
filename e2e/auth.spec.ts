@@ -52,6 +52,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
   const email = `register-${Date.now()}@movieshub-e2e.test`;
   await page.setViewportSize({ width: 390, height: 844 });
   const registerResponse = await page.goto("/auth/register");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   const securityHeaders = registerResponse?.headers() ?? {};
   expect(securityHeaders["x-content-type-options"]).toBe("nosniff");
   expect(securityHeaders["x-frame-options"]).toBe("DENY");
@@ -71,6 +72,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
   }).toBe("USER");
 
   await page.goto("/auth/login");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("Incorrect-Test-Password!");
   await page.getByRole("button", { name: "Login" }).click();
@@ -165,7 +167,9 @@ test("email verification is expiring-token based and single-use", async ({ page 
   });
   expect(expiredResponse.status()).toBe(400);
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/auth/verify-email?token=${oneTimeToken.token}`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await expect(page.getByRole("status")).toContainText("verified");
   const saved = await prisma.user.findUnique({ where: { id: user.id }, select: { isEmailVerified: true } });
   expect(saved?.isEmailVerified).toBe(true);
@@ -209,7 +213,9 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/admin");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await expect(page.getByRole("heading", { name: "Admin · Movie Management" })).toBeVisible();
   const adminAccess = await page.request.get("/api/admin/movies");
   expect(adminAccess.status()).toBe(200);
