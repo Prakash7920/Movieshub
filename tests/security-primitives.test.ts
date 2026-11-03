@@ -93,6 +93,7 @@ test("territory resolver normalizes valid proxy country codes and fails closed",
 });
 
 test("session revocation IDs are stable and prefer the JWT identifier", () => {
+  assert.equal(getSessionRevocationId({ sid: "stable-session" }), "sid:stable-session");
   assert.equal(getSessionRevocationId({ jti: "session-jti" }), "jti:session-jti");
   const first = getSessionRevocationId({ sub: "user-1", iat: 100, exp: 200 });
   const second = getSessionRevocationId({ sub: "user-1", iat: 100, exp: 200 });
