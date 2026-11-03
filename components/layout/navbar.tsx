@@ -43,12 +43,12 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
-      <div className="page-shell flex items-center justify-between gap-4 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 font-bold text-white">M</div>
+      <div className="page-shell flex items-center justify-between gap-2 py-3">
+        <Link href="/" className="flex min-w-0 shrink items-center gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-600 font-bold text-white">M</div>
           <div>
-            <div className="text-base font-semibold text-white">{t.brand}</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400">{t.tagline}</div>
+            <div className="truncate text-sm font-semibold text-white sm:text-base">{t.brand}</div>
+            <div className="hidden text-[10px] uppercase tracking-[0.2em] text-gray-400 sm:block">{t.tagline}</div>
           </div>
         </Link>
         <nav className="hidden items-center gap-2 md:flex">
@@ -59,15 +59,14 @@ export function Navbar() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
           <Link
             href="/admin"
             aria-label="Admin"
             title="Admin"
-            className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden"
+            className="inline-flex shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10 p-2 text-sm font-medium text-red-100 transition hover:bg-red-500/20 md:hidden max-[380px]:hidden"
           >
             <ShieldCheck className="h-4 w-4" />
-            <span>Admin</span>
           </Link>
           <LanguageSwitcher />
           {isLoggedIn ? (
@@ -82,7 +81,7 @@ export function Navbar() {
               <span className="hidden sm:inline">{isSigningOut ? "Logging out..." : "Logout"}</span>
             </button>
           ) : (
-            <Link href="/auth/login" className="rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200">{t.login}</Link>
+            <Link href="/auth/login" className="whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white transition hover:border-red-500/50 hover:text-red-200 sm:px-4 sm:text-sm">{t.login}</Link>
           )}
         </div>
       </div>
