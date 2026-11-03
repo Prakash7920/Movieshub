@@ -24,8 +24,14 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const emailLimit = await consumeRateLimit("login-email", email, 10, 15 * 60);
-          const ip = req.headers["x-real-ip"]?.trim() ||
-            req.headers["x-forwarded-for"]?.split(",").map((part) => part.trim()).filter(Boolean).at(-1);
+          const headers = req.headers ?? {};
+          const realIp = headers["x-real-ip"];
+          const forwardedFor = headers["x-forwarded-for"];
+          const ip = typeof realIp === "string" && realIp.trim()
+            ? realIp.trim()
+            : typeof forwardedFor === "string"
+              ? forwardedFor.split(",").map((part: string) => part.trim()).filter(Boolean).at(-1)
+              : undefined;
           const ipLimit = ip
             ? await consumeRateLimit("login-ip", ip, 30, 15 * 60)
             : { allowed: true };
@@ -46,11 +52,13 @@ export const authOptions: NextAuthOptions = {
   ],
   events: {
     async signOut({ token }) {
-      if (token?.jti && token.sub && typeof token.exp === "number") {
+      const tokenId = typeof token?.jti === "string" ? token.jti : null;
+      const userId = typeof token?.sub === "string" ? token.sub : null;
+      if (tokenId && userId && typeof token?.exp === "number") {
         try {
           await prisma.revokedSessionToken.upsert({
-            where: { tokenId: token.jti },
-            create: { tokenId: token.jti, userId: token.sub, expiresAt: new Date(token.exp * 1000) },
+            where: { tokenId },
+            create: { tokenId, userId, expiresAt: new Date(token.exp * 1000) },
             update: { expiresAt: new Date(token.exp * 1000) },
           });
         } catch (error) {
@@ -62,9 +70,10 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
-      if (token.jti) {
+      const tokenId = typeof token.jti === "string" ? token.jti : null;
+      if (tokenId) {
         const revoked = await prisma.revokedSessionToken.findUnique({
-          where: { tokenId: token.jti },
+          where: { tokenId },
           select: { id: true },
         });
         if (revoked) delete token.sub;
