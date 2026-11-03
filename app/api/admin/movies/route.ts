@@ -86,18 +86,34 @@ export async function PATCH(request: Request) {
     if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid update." }, { status: 400 });
     const b = body as Record<string, unknown>;
     if (typeof b.id !== "string" || typeof b.publish !== "boolean") return NextResponse.json({ error: "Movie id and publish status are required." }, { status: 400 });
-    const existing = await prisma.movie.findUnique({ where: { id: b.id }, select: { id: true, license: { select: { status: true, startDate: true, expiryDate: true, allowedCountries: true } } } });
-    if (!existing) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
-    if (b.publish) {
-      const license = existing.license;
-      const now = new Date();
-      if (!license || license.status !== "ACTIVE" || license.startDate > now || license.expiryDate <= now || license.allowedCountries.length === 0) {
-        return NextResponse.json({ error: "Cannot publish: a current ACTIVE licence with valid dates and permitted territories must be recorded first." }, { status: 409 });
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.movie.findUnique({
+        where: { id: b.id as string },
+        select: { id: true, license: { select: { status: true, startDate: true, expiryDate: true, allowedCountries: true } } },
+      });
+      if (!existing) return null;
+      if (b.publish) {
+        const license = existing.license;
+        const now = new Date();
+        if (!license || license.status !== "ACTIVE" || license.startDate > now || license.expiryDate <= now || license.allowedCountries.length === 0) {
+          throw new Error("LICENCE_NOT_PUBLISHABLE");
+        }
       }
-    }
-    const updated = await prisma.movie.update({ where: { id: b.id }, data: { isPublished: b.publish, contentStatus: b.publish ? ContentStatus.PUBLISHED : ContentStatus.UNPUBLISHED }, select: { id: true, isPublished: true, contentStatus: true } });
+      return tx.movie.update({
+        where: { id: b.id as string },
+        data: { isPublished: b.publish as boolean, contentStatus: b.publish ? ContentStatus.PUBLISHED : ContentStatus.UNPUBLISHED },
+        select: { id: true, isPublished: true, contentStatus: true },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (!updated) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
     return NextResponse.json({ message: b.publish ? "Movie published." : "Movie unpublished.", movie: updated });
   } catch (error) {
+    if (error instanceof Error && error.message === "LICENCE_NOT_PUBLISHABLE") {
+      return NextResponse.json({ error: "Cannot publish: a current ACTIVE licence with valid dates and permitted territories must be recorded first." }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return NextResponse.json({ error: "The licence changed during publishing. Please review the licence and try again." }, { status: 409 });
+    }
     console.error("Admin movie update failed:", error);
     return NextResponse.json({ error: "Unable to update movie." }, { status: 500 });
   }
