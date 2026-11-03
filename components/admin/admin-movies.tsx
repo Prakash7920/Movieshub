@@ -82,7 +82,7 @@ export default function AdminMovies(){
 
  const input="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-sm text-white placeholder:text-gray-500";
  return <main className="page-shell py-8">
-  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">MoviesHub control room</p>
+  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">NexaFilm control room</p>
   <h1 className="mt-2 text-3xl font-bold text-white">Admin · Movie Management</h1>
   <p className="mt-2 text-sm text-gray-400">New entries are saved as drafts. Publishing is blocked until an active content licence is recorded.</p>
   {error&&<p role="alert" className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
