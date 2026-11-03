@@ -52,7 +52,7 @@ test("state-changing API requests require a same-origin source", () => {
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
 
-test("JSON content type and declared body size are enforced", async () => {
+test("JSON content type and actual body size are enforced", async () => {
   const valid = new Request("https://movieshub.example/api", {
     method: "POST",
     headers: { "content-type": "application/json" },
