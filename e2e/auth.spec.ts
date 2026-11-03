@@ -5,6 +5,7 @@ import { createOneTimeToken } from "../lib/security/tokens";
 
 const prisma = new PrismaClient();
 const testPassword = "MoviesHub-Test-Password-2026!";
+let isolatedDatabaseValidated = false;
 
 function requireIsolatedTestDatabase() {
   if (process.env.MOVIESHUB_E2E !== "true") {
@@ -17,6 +18,7 @@ function requireIsolatedTestDatabase() {
       !databaseUrl.pathname.includes("movieshub_test")) {
     throw new Error("E2E tests may only run against the isolated local movieshub_test database.");
   }
+  isolatedDatabaseValidated = true;
 }
 
 async function createUser(email: string, role: Role = Role.USER, isEmailVerified = true) {
@@ -40,7 +42,9 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await prisma.user.deleteMany({ where: { email: { endsWith: "@movieshub-e2e.test" } } });
+  if (isolatedDatabaseValidated) {
+    await prisma.user.deleteMany({ where: { email: { endsWith: "@movieshub-e2e.test" } } });
+  }
   await prisma.$disconnect();
 });
 
@@ -64,6 +68,10 @@ test("registration, login, logout and protected routes work on mobile", async ({
 
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill("Incorrect-Test-Password!");
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
+
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login" }).click();
 
@@ -91,6 +99,16 @@ test("password reset is single-use and invalidates the previous JWT", async ({ p
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
+
+  const expiredToken = createOneTimeToken();
+  await prisma.passwordResetToken.create({
+    data: { userId: user.id, tokenHash: expiredToken.tokenHash, expiresAt: new Date(Date.now() - 60_000) },
+  });
+  const expiredResponse = await page.request.post("/api/auth/reset-password", {
+    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    data: { token: expiredToken.token, password: "MoviesHub-New-Password-2026!" },
+  });
+  expect(expiredResponse.status()).toBe(400);
 
   await page.goto(`/auth/reset-password?token=${oneTimeToken.token}`);
   const passwordInputs = page.locator('input[type="password"]');
@@ -123,6 +141,16 @@ test("email verification is expiring-token based and single-use", async ({ page 
     data: { userId: user.id, tokenHash: oneTimeToken.tokenHash, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
   });
 
+  const expiredToken = createOneTimeToken();
+  await prisma.emailVerificationToken.create({
+    data: { userId: user.id, tokenHash: expiredToken.tokenHash, expiresAt: new Date(Date.now() - 60_000) },
+  });
+  const expiredResponse = await page.request.post("/api/auth/verify-email", {
+    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    data: { token: expiredToken.token },
+  });
+  expect(expiredResponse.status()).toBe(400);
+
   await page.goto(`/auth/verify-email?token=${oneTimeToken.token}`);
   await expect(page.getByRole("status")).toContainText("verified");
   const saved = await prisma.user.findUnique({ where: { id: user.id }, select: { isEmailVerified: true } });
@@ -154,6 +182,17 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await expect(page).toHaveURL(/dashboard/);
   const forbidden = await page.request.get("/api/admin/movies");
   expect(forbidden.status()).toBe(403);
+
+  await page.locator('header button[aria-label="Logout"]').click();
+  const adminEmail = `admin-${Date.now()}@movieshub-e2e.test`;
+  await createUser(adminEmail, Role.ADMIN);
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(adminEmail);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  const adminAccess = await page.request.get("/api/admin/movies");
+  expect(adminAccess.status()).toBe(200);
 });
 
 test("territory restrictions fail closed and exclude non-permitted movies", async ({ page }) => {
@@ -199,4 +238,105 @@ test("territory restrictions fail closed and exclude non-permitted movies", asyn
   expect(failClosed.status()).toBe(503);
 
   await prisma.movie.delete({ where: { id: movie.id } });
+});
+
+test("watchlist ownership is derived from the authenticated user, not request fields", async ({ page }) => {
+  const ownerEmail = `owner-${Date.now()}@movieshub-e2e.test`;
+  const otherEmail = `other-${Date.now()}@movieshub-e2e.test`;
+  const owner = await createUser(ownerEmail);
+  const other = await createUser(otherEmail);
+  const slug = `owner-only-${Date.now()}`;
+  const movie = await prisma.movie.create({
+    data: {
+      titleEn: "Owner Isolation Test",
+      titleTa: "Owner Isolation Test",
+      slug,
+      descriptionEn: "Test metadata",
+      descriptionTa: "Test metadata",
+      posterUrl: "https://example.com/poster.jpg",
+      backdropUrl: "https://example.com/backdrop.jpg",
+      language: "en",
+      audioLanguages: ["en"],
+      subtitleLanguages: ["en"],
+      releaseYear: 2026,
+      runtimeMinutes: 90,
+      ageRating: "U",
+      isPublished: true,
+      contentStatus: ContentStatus.PUBLISHED,
+      allowedCountries: ["IN"],
+      license: {
+        create: {
+          owner: "Test rights holder",
+          status: LicenseStatus.ACTIVE,
+          startDate: new Date(Date.now() - 60_000),
+          expiryDate: new Date(Date.now() + 60_000),
+          allowedCountries: ["IN"],
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(owner.email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  const saved = await page.request.post("/api/watchlist", {
+    headers: {
+      origin: "http://127.0.0.1:3000",
+      "content-type": "application/json",
+      "x-vercel-ip-country": "IN",
+    },
+    data: { slug, userId: other.id },
+  });
+  expect(saved.status()).toBe(201);
+
+  const ownerList = await page.request.get(`/api/watchlist?userId=${other.id}`, {
+    headers: { "x-vercel-ip-country": "IN" },
+  });
+  expect(ownerList.status()).toBe(200);
+  const ownerBody = await ownerList.json();
+  expect(ownerBody.items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(true);
+
+  await page.locator('header button[aria-label="Logout"]').click();
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(other.email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  const otherList = await page.request.get("/api/watchlist", {
+    headers: { "x-vercel-ip-country": "IN" },
+  });
+  expect(otherList.status()).toBe(200);
+  const otherBody = await otherList.json();
+  expect(otherBody.items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(false);
+
+  await prisma.movie.delete({ where: { id: movie.id } });
+});
+
+test("password change invalidates the current session and permits the new password", async ({ page }) => {
+  const email = `change-${Date.now()}@movieshub-e2e.test`;
+  await createUser(email);
+
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  await page.goto("/auth/change-password");
+  const fields = page.locator('input[type="password"]');
+  await fields.nth(0).fill(testPassword);
+  await fields.nth(1).fill("MoviesHub-Changed-Password-2026!");
+  await fields.nth(2).fill("MoviesHub-Changed-Password-2026!");
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page).toHaveURL(/auth\/login/);
+
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill("MoviesHub-Changed-Password-2026!");
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/dashboard/);
 });
