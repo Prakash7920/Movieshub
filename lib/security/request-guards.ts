@@ -3,11 +3,14 @@ export function isSameOriginRequest(request: Request): boolean {
   if (!source) return false;
 
   try {
-    const configuredUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
-    const expectedOrigin = configuredUrl
-      ? new URL(configuredUrl).origin
-      : new URL(request.url).origin;
-    return new URL(source).origin === expectedOrigin;
+    // Validate against the origin serving this request. Preview deployments use
+    // unique Vercel hostnames, while NEXTAUTH_URL may point at a canonical URL.
+    // Comparing to the configured canonical URL incorrectly rejects legitimate
+    // same-origin POSTs from Preview deployments.
+    const requestOrigin = new URL(request.url).origin;
+    const sourceUrl = new URL(source);
+    return (sourceUrl.protocol === "https:" || sourceUrl.protocol === "http:") &&
+      sourceUrl.origin === requestOrigin;
   } catch {
     return false;
   }
