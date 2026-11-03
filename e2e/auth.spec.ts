@@ -78,11 +78,11 @@ test("registration, login, logout and protected routes work on mobile", async ({
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("Incorrect-Test-Password!");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
 
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
 
   await expect(page).toHaveURL(/dashboard/);
   const sessionCookie = (await page.context().cookies()).find((cookie) => cookie.name.includes("session-token"));
@@ -120,7 +120,7 @@ test("password reset is single-use and invalidates the previous JWT", async ({ p
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
   const expiredToken = createOneTimeToken();
@@ -128,7 +128,7 @@ test("password reset is single-use and invalidates the previous JWT", async ({ p
     data: { userId: user.id, tokenHash: expiredToken.tokenHash, expiresAt: new Date(Date.now() - 60_000) },
   });
   const expiredResponse = await page.request.post("/api/auth/reset-password", {
-    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
     data: { token: expiredToken.token, password: "MoviesHub-New-Password-2026!" },
   });
   expect(expiredResponse.status()).toBe(400);
@@ -144,7 +144,7 @@ test("password reset is single-use and invalidates the previous JWT", async ({ p
   expect(oldSessionResponse.status()).toBe(401);
 
   const replayResponse = await page.request.post("/api/auth/reset-password", {
-    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
     data: { token: oneTimeToken.token, password: "MoviesHub-Another-Password!" },
   });
   expect(replayResponse.status()).toBe(400);
@@ -152,7 +152,7 @@ test("password reset is single-use and invalidates the previous JWT", async ({ p
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("MoviesHub-New-Password-2026!");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 });
 
@@ -169,7 +169,7 @@ test("email verification is expiring-token based and single-use", async ({ page 
     data: { userId: user.id, tokenHash: expiredToken.tokenHash, expiresAt: new Date(Date.now() - 60_000) },
   });
   const expiredResponse = await page.request.post("/api/auth/verify-email", {
-    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
     data: { token: expiredToken.token },
   });
   expect(expiredResponse.status()).toBe(400);
@@ -192,7 +192,7 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   const userEmail = `ordinary-${Date.now()}@movieshub-e2e.test`;
   const ordinary = await createUser(userEmail);
   const response = await page.request.post("/api/auth/register", {
-    headers: { origin: "http://127.0.0.1:3000", "content-type": "application/json" },
+    headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
     data: { name: "Escalation", email: `escalation-${Date.now()}@movieshub-e2e.test`, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
   });
   expect(response.status()).toBe(201);
@@ -205,7 +205,7 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(ordinary.email);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Admin access required" })).toBeVisible();
@@ -218,7 +218,7 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(adminEmail);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/admin");
@@ -351,7 +351,7 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(owner.email);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
   const privateHeaders = {
@@ -385,7 +385,7 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(other.email);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
   const otherList = await page.request.get("/api/watchlist", {
@@ -409,7 +409,7 @@ test("password change invalidates the current session and permits the new passwo
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 
   await page.goto("/auth/change-password");
@@ -422,14 +422,14 @@ test("password change invalidates the current session and permits the new passwo
 
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("MoviesHub-Changed-Password-2026!");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
 });
 
 test("verification resend uses the same response for known and unknown addresses", async ({ page }) => {
   const knownEmail = `resend-known-${Date.now()}@movieshub-e2e.test`;
   await createUser(knownEmail, Role.USER, false);
-  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const headers = { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" };
   const known = await page.request.post("/api/auth/resend-verification", { headers, data: { email: knownEmail } });
   const unknown = await page.request.post("/api/auth/resend-verification", {
     headers,
@@ -446,7 +446,7 @@ test("account suspension and deletion invalidate existing JWT sessions", async (
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(bannedEmail);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
   await prisma.user.update({ where: { id: bannedUser.id }, data: { isBanned: true } });
   expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
@@ -456,7 +456,7 @@ test("account suspension and deletion invalidate existing JWT sessions", async (
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(deletedEmail);
   await page.locator('input[type="password"]').fill(testPassword);
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
   await prisma.user.delete({ where: { id: deletedUser.id } });
   expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
@@ -477,7 +477,7 @@ test("rate-limit cleanup cron requires its bearer secret", async ({ page }) => {
 
 test("registration throttling returns 429 after the configured email window", async ({ page }) => {
   const email = `rate-limit-${Date.now()}@movieshub-e2e.test`;
-  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const headers = { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" };
   const data = { name: "Rate Limit Test", email, password: testPassword, confirmPassword: testPassword };
   const first = await page.request.post("/api/auth/register", { headers, data });
   const second = await page.request.post("/api/auth/register", { headers, data });
@@ -493,7 +493,7 @@ test("registration throttling returns 429 after the configured email window", as
 test("password reset requests do not reveal whether an email exists", async ({ page }) => {
   const knownEmail = `forgot-known-${Date.now()}@movieshub-e2e.test`;
   await createUser(knownEmail);
-  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const headers = { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" };
   const known = await page.request.post("/api/auth/forgot-password", { headers, data: { email: knownEmail } });
   const unknown = await page.request.post("/api/auth/forgot-password", {
     headers,
