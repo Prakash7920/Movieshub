@@ -86,17 +86,31 @@ export async function POST(request: Request) {
     if (!/^[a-z]{2,3}$/.test(language)) return NextResponse.json({ error: "Use a valid language code such as ta, te, ml, kn, hi or en." }, { status: 400 });
     const genreName = typeof b.genre === "string" ? b.genre.trim().slice(0, 60) : "";
     if (!genreName) return NextResponse.json({ error: "Genre is required." }, { status: 400 });
+
+    const audioLanguages = Array.isArray(b.audioLanguages) ? b.audioLanguages : [language];
+    const subtitleLanguages = Array.isArray(b.subtitleLanguages) ? b.subtitleLanguages : [];
+    const allowedCountries = Array.isArray(b.allowedCountries) ? b.allowedCountries : [];
+    if (audioLanguages.length > 20 || audioLanguages.some((value) => typeof value !== "string" || !/^[a-z]{2,3}$/i.test(value.trim()))) {
+      return NextResponse.json({ error: "Audio languages must be valid two- or three-letter language codes." }, { status: 400 });
+    }
+    if (subtitleLanguages.length > 20 || subtitleLanguages.some((value) => typeof value !== "string" || !/^[a-z]{2,3}$/i.test(value.trim()))) {
+      return NextResponse.json({ error: "Subtitle languages must be valid two- or three-letter language codes." }, { status: 400 });
+    }
+    if (allowedCountries.length > 30 || allowedCountries.some((value) => typeof value !== "string" || !/^[A-Z]{2}$/i.test(value.trim()))) {
+      return NextResponse.json({ error: "Allowed countries must be valid two-letter ISO country codes." }, { status: 400 });
+    }
+
     const movie = await prisma.movie.create({
       data: {
         titleEn: (b.titleEn as string).trim().slice(0, 160), titleTa: (b.titleTa as string).trim().slice(0, 160), slug,
         descriptionEn: (b.descriptionEn as string).trim().slice(0, 5000), descriptionTa: (b.descriptionTa as string).trim().slice(0, 5000),
         posterUrl: (b.posterUrl as string).trim().slice(0, 2000), backdropUrl: (b.backdropUrl as string).trim().slice(0, 2000),
-        language, audioLanguages: Array.isArray(b.audioLanguages) ? b.audioLanguages.filter((x): x is string => typeof x === "string").slice(0, 20) : [language],
-        subtitleLanguages: Array.isArray(b.subtitleLanguages) ? b.subtitleLanguages.filter((x): x is string => typeof x === "string").slice(0, 20) : [],
+        language, audioLanguages: audioLanguages.map((value) => (value as string).trim().toLowerCase()),
+        subtitleLanguages: subtitleLanguages.map((value) => (value as string).trim().toLowerCase()),
         releaseYear, runtimeMinutes, ageRating: (b.ageRating as string).trim().slice(0, 20), rating,
         movieType: b.movieType === "FREE" ? MovieType.FREE : MovieType.PREMIUM,
         isFeatured: b.isFeatured === true, isPublished: false, contentStatus: ContentStatus.DRAFT,
-        allowedCountries: Array.isArray(b.allowedCountries) ? b.allowedCountries.filter((x): x is string => typeof x === "string").slice(0, 30) : [],
+        allowedCountries: allowedCountries.map((value) => (value as string).trim().toUpperCase()),
         trailerUrl: null, videoUrl: null, downloadPermission: false,
         genres: { create: { genre: { connectOrCreate: { where: { slug: genreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }, create: { name: genreName, slug: genreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") } } } } },
       },
