@@ -10,7 +10,7 @@ const baseEnvSchema = z.object({
 
   NEXTAUTH_SECRET: z.string().min(32).optional(),
   NEXTAUTH_URL: z.string().url().optional(),
-  RATE_LIMIT_SECRET: z.string().min(32).optional(),
+  RATE_LIMIT_SECRET: z.union([z.string().min(32), z.literal("")]).optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
   REQUIRE_EMAIL_VERIFICATION: z.enum(["true", "false", ""]).optional().transform((value) => value === "true"),
