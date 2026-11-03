@@ -96,13 +96,14 @@ export async function PATCH(request: Request) {
     if (typeof b.reason !== "string" || b.reason.trim().length < 3) {
       return NextResponse.json({ error: "Enter a brief rejection reason." }, { status: 400 });
     }
+    const rejectionReason = b.reason.trim().slice(0, 500);
     const reviewedAt = new Date();
     await prisma.$transaction(async tx => {
       await tx.license.update({
         where: { movieId },
         data: {
           status: LicenseStatus.REJECTED,
-          notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + b.reason.trim().slice(0, 500), "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\n"),
+          notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + rejectionReason, "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\n"),
         },
       });
       const movie = await tx.movie.findUnique({ where: { id: movieId }, select: { isPublished: true } });
