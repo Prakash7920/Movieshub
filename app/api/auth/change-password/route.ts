@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
-  if (!hasValidJsonContentType(request)) {
+  if (!(await hasValidJsonContentType(request))) {
     return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   }
   try {
