@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(expiryDate.getTime()) || expiryDate <= startDate) {
       return NextResponse.json({ error: "Expiry date must be after the start date." }, { status: 400 });
     }
-    const allowedCountries = b.countries.split(",").map(x => x.trim().toUpperCase()).filter(Boolean);
+    const allowedCountries = [...new Set(b.countries.split(",").map(x => x.trim().toUpperCase()).filter(Boolean))];
     if (!allowedCountries.length || allowedCountries.length > 30 || allowedCountries.some(x => !/^[A-Z]{2}$/.test(x))) {
       return NextResponse.json({ error: "Enter permitted countries as two-letter ISO codes, separated by commas (for example IN, SG)." }, { status: 400 });
     }
@@ -64,9 +64,12 @@ export async function POST(request: Request) {
         });
       }
       return saved;
-    });
+    }, { isolationLevel: "Serializable" });
     return NextResponse.json({ message: "Licence details saved as PENDING. Any previously published movie was unpublished and will require fresh approval and manual publishing.", license }, { status: 201 });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
+      return NextResponse.json({ error: "The licence changed during this update. Reload the record and try again." }, { status: 409 });
+    }
     console.error("Admin licence save failed:", error);
     return NextResponse.json({ error: "Unable to save licence details." }, { status: 500 });
   }
