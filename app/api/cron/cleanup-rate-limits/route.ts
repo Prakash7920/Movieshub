@@ -23,10 +23,11 @@ export async function GET(request: Request) {
 
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const result = await prisma.rateLimitBucket.deleteMany({
-      where: { expiresAt: { lt: cutoff } },
-    });
-    return NextResponse.json({ status: "ok", expiredBucketsRemoved: result.count }, {
+    const [rateLimits, revokedSessions] = await Promise.all([
+      prisma.rateLimitBucket.deleteMany({ where: { expiresAt: { lt: cutoff } } }),
+      prisma.revokedSessionToken.deleteMany({ where: { expiresAt: { lt: new Date() } } }),
+    ]);
+    return NextResponse.json({ status: "ok", expiredBucketsRemoved: rateLimits.count, expiredSessionsRemoved: revokedSessions.count }, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
