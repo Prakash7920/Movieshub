@@ -58,11 +58,14 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
       <div className="page-shell flex items-center justify-between gap-2 py-3">
         <Link href="/" aria-label="NexaFilm home" className="flex min-w-0 shrink items-center gap-2">
-          <Image src="/nexafilm-mark.svg" alt="" width={40} height={40} priority className="h-9 w-9 shrink-0" />
-          <div>
-            <div className="truncate text-sm font-semibold text-white sm:text-base">{t.brand}</div>
-            <div className="hidden text-[10px] uppercase tracking-[0.2em] text-gray-400 sm:block">{t.tagline}</div>
-          </div>
+          <Image
+            src="/nexafilm-logo.svg"
+            alt="NexaFilm — One Platform. Every Language. Endless Stories."
+            width={210}
+            height={53}
+            priority
+            className="h-auto w-[128px] shrink-0 sm:w-[170px] lg:w-[190px]"
+          />
         </Link>
         <nav className="hidden items-center gap-2 md:flex">
           {navItems.map(({ href, labelKey, icon: Icon }) => (
