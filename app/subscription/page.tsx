@@ -29,7 +29,7 @@ export default function SubscriptionPage() {
     <div className="page-shell pb-16 pt-8">
       <div className="mb-10 text-center">
         <p className="text-sm uppercase tracking-[0.2em] text-red-200">Plans & pricing</p>
-        <h1 className="mt-3 text-4xl font-black text-white">Choose your MoviesHub plan</h1>
+        <h1 className="mt-3 text-4xl font-black text-white">Choose your NexaFilm plan</h1>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-400">Choose monthly or annual billing. Prices shown are planned catalogue prices; paid checkout is not open yet.</p>
       </div>
 
