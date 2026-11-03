@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("Registration failed:", error);
+    logSafeError("Registration failed", error);
     return NextResponse.json(
       { error: "Unable to create your account right now. Please try again." },
       { status: 500 },
