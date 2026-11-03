@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashOneTimeToken, isWellFormedOneTimeToken } from "@/lib/security/tokens";
@@ -10,6 +11,12 @@ export const runtime = "nodejs";
 const schema = z.object({ token: z.string().refine(isWellFormedOneTimeToken) });
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!hasValidJsonContentType(request)) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   try {
     const body: unknown = await request.json();
     const parsed = schema.safeParse(body);
