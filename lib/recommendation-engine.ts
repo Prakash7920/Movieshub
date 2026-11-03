@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export type RecommendationSignal = {
   name: string;
@@ -113,7 +111,9 @@ export async function getRecommendationAssistantData(
     if (!user) return buildFallbackResult("No matching user profile was found for the recommendation engine.");
 
     const preferredLanguage = (user.profiles[0]?.languagePreference === "en" ? "en" : "ta") as "en" | "ta";
-    const activeSubscription = user.subscriptions[0]?.plan ?? "FREE";
+    // Do not infer a paid recommendation preference from a subscription row alone.
+    // Active payment and date checks remain centralized in the entitlement service.
+    const activeSubscription = "FREE";
     const watchedHistory = user.watchHistory ?? [];
 
     const genreCounts = new Map<string, number>();
