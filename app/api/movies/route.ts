@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     if (language !== "all" && !/^[a-z]{2,3}$/.test(language)) {
       return NextResponse.json({ error: "Invalid language filter." }, { status: 400 });
     }
-    if (genre !== "all" && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(genre)) {
+    if (genre !== "all" && (genre.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(genre))) {
       return NextResponse.json({ error: "Invalid genre filter." }, { status: 400 });
     }
     const now = new Date();
