@@ -88,6 +88,7 @@ model User {
   adminUser        AdminUser?
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  revokedSessionTokens RevokedSessionToken[]
 
   @@index([email])
   @@index([role])
@@ -128,6 +129,18 @@ model RateLimitBucket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([expiresAt])
+}
+
+model RevokedSessionToken {
+  id        String   @id @default(cuid())
+  tokenId   String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 
