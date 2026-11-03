@@ -12,7 +12,6 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts"
   },
   "dependencies": {
