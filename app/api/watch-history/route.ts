@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
@@ -63,7 +64,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watch history fetch failed:", error);
+    logSafeError("Watch history fetch failed", error);
     return NextResponse.json({ error: "Unable to load watch history." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ message: "Watch history saved.", item }, { status: 200, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watch history save failed:", error);
+    logSafeError("Watch history save failed", error);
     return NextResponse.json({ error: "Unable to save watch history right now." }, { status: 500 });
   }
 }
@@ -113,7 +114,7 @@ export async function DELETE(request: Request) {
     await prisma.watchHistory.deleteMany({ where: { userId, movie: { slug } } });
     return NextResponse.json({ message: "Watch history entry removed." }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Watch history removal failed:", error);
+    logSafeError("Watch history removal failed", error);
     return NextResponse.json({ error: "Unable to remove this history entry." }, { status: 500 });
   }
 }
