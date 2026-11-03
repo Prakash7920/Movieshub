@@ -2,7 +2,7 @@ name: Vercel build and security validation
 
 on:
   push:
-    branches: [main, phase-3-production-validation-security]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
