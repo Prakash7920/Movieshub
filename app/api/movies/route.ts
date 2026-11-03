@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
       genres,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Movie catalogue fetch failed:", error);
+    logSafeError("Movie catalogue fetch failed", error);
     return NextResponse.json({ error: "Unable to load the movie catalogue." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
