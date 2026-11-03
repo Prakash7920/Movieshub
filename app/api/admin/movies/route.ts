@@ -59,6 +59,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
@@ -106,6 +112,12 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
@@ -148,6 +160,12 @@ export async function PATCH(request: Request) {
 
 
 export async function PUT(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
@@ -197,6 +215,12 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
