@@ -19,10 +19,22 @@ function isSafeImageUrl(value: string): boolean {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  let session;
+  try {
+    session = await getServerSession(authOptions);
+  } catch (error) {
+    logSafeError("Admin session lookup failed", error);
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
-  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  } catch (error) {
+    logSafeError("Admin authorization lookup failed", error);
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
