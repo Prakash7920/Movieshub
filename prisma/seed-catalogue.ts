@@ -29,9 +29,11 @@ async function main() {
       downloadPermission: false,
     };
 
+    // Seed only missing sample records. Never overwrite an existing movie:
+    // production catalogue edits, licence state and publication status must survive reruns.
     const savedMovie = await prisma.movie.upsert({
       where: { slug: movie.slug },
-      update: data,
+      update: {},
       create: { ...data, slug: movie.slug },
       select: { id: true },
     });
