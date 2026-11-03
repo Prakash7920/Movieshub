@@ -22,7 +22,7 @@ export function LanguageSwitcher() {
 export function Footer() {
   return (
     <footer className="border-t border-white/10 py-8 text-center text-sm text-gray-500">
-      © {new Date().getFullYear()} MoviesHub. Sample catalogue only. Playback is unavailable until distribution rights are verified.
+      © {new Date().getFullYear()} NexaFilm. One Platform. Every Language. Endless Stories. Sample catalogue only; playback is unavailable until distribution rights are verified.
     </footer>
   );
 }
