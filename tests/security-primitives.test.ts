@@ -37,17 +37,27 @@ test("client IP extraction uses the final forwarded hop as a fallback", () => {
 });
 
 test("state-changing API requests require a same-origin source", () => {
-  const sameOrigin = new Request("https://movieshub.example/api/auth/register", {
+  const expectedOrigin = process.env.NEXTAUTH_URL
+    ? new URL(process.env.NEXTAUTH_URL).origin
+    : process.env.NEXT_PUBLIC_APP_URL
+      ? new URL(process.env.NEXT_PUBLIC_APP_URL).origin
+      : "https://movieshub.example";
+  const sameOrigin = new Request(`${expectedOrigin}/api/auth/register`, {
     method: "POST",
-    headers: { origin: "https://movieshub.example" },
+    headers: { origin: expectedOrigin },
   });
-  const foreignOrigin = new Request("https://movieshub.example/api/auth/register", {
+  const sameOriginReferer = new Request(`${expectedOrigin}/api/auth/register`, {
+    method: "POST",
+    headers: { referer: `${expectedOrigin}/auth/register` },
+  });
+  const foreignOrigin = new Request(`${expectedOrigin}/api/auth/register`, {
     method: "POST",
     headers: { origin: "https://attacker.example" },
   });
-  const missingOrigin = new Request("https://movieshub.example/api/auth/register", { method: "POST" });
+  const missingOrigin = new Request(`${expectedOrigin}/api/auth/register`, { method: "POST" });
 
   assert.equal(isSameOriginRequest(sameOrigin), true);
+  assert.equal(isSameOriginRequest(sameOriginReferer), true);
   assert.equal(isSameOriginRequest(foreignOrigin), false);
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
