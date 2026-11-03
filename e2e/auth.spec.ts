@@ -203,7 +203,7 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "MoviesHub Admin" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Admin · Movie Management" })).toBeVisible();
   const adminAccess = await page.request.get("/api/admin/movies");
   expect(adminAccess.status()).toBe(200);
   const adminBody = await adminAccess.json();
