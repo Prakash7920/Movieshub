@@ -18,25 +18,26 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
         if (!email || !password) return null;
-
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || user.isBanned || !user.passwordHash) return null;
-
         const validPassword = await bcrypt.compare(password, user.passwordHash);
         if (!validPassword) return null;
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.avatarUrl,
-        };
+        return { id: user.id, name: user.name, email: user.email, image: user.avatarUrl };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
+      if (token.sub && typeof token.iat === "number") {
+        const account = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { passwordChangedAt: true, isBanned: true },
+        });
+        if (!account || account.isBanned || (account.passwordChangedAt && token.iat * 1000 < account.passwordChangedAt.getTime())) {
+          delete token.sub;
+        }
+      }
       return token;
     },
     async session({ session, token }) {

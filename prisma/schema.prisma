@@ -8,68 +8,16 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role {
-  USER
-  ADMIN
-  SUPERADMIN
-}
-
-enum AuthProvider {
-  CREDENTIALS
-  GOOGLE
-  GITHUB
-}
-
-enum PlanType {
-  FREE
-  PREMIUM
-}
-
-enum BillingCycle {
-  MONTHLY
-  YEARLY
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  PAST_DUE
-  TRIALING
-  EXPIRED
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-  CANCELLED
-}
-
-enum MovieType {
-  FREE
-  PREMIUM
-}
-
-enum ContentStatus {
-  DRAFT
-  PUBLISHED
-  UNPUBLISHED
-  ARCHIVED
-}
-
-enum AdType {
-  BANNER
-  VIDEO
-  POPUP
-}
-
-enum LicenseStatus {
-  ACTIVE
-  EXPIRED
-  PENDING
-  REJECTED
-}
+enum Role { USER ADMIN SUPERADMIN }
+enum AuthProvider { CREDENTIALS GOOGLE GITHUB }
+enum PlanType { FREE PREMIUM }
+enum BillingCycle { MONTHLY YEARLY }
+enum SubscriptionStatus { ACTIVE CANCELLED PAST_DUE TRIALING EXPIRED }
+enum PaymentStatus { PENDING PAID FAILED REFUNDED CANCELLED }
+enum MovieType { FREE PREMIUM }
+enum ContentStatus { DRAFT PUBLISHED UNPUBLISHED ARCHIVED }
+enum AdType { BANNER VIDEO POPUP }
+enum LicenseStatus { ACTIVE EXPIRED PENDING REJECTED }
 
 model User {
   id               String          @id @default(cuid())
@@ -78,12 +26,13 @@ model User {
   name             String?
   avatarUrl        String?
   passwordHash     String?
+  passwordChangedAt DateTime?
   role             Role            @default(USER)
   provider         AuthProvider    @default(CREDENTIALS)
   isEmailVerified  Boolean         @default(false)
-  isBanned         Boolean         @default(false)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  isBanned          Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   profiles         Profile[]
   watchlists       Watchlist[]
@@ -94,10 +43,24 @@ model User {
   reports          Report[]
   recommendations Recommendation[]
   adminUser        AdminUser?
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([role])
   @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model Profile {
@@ -109,78 +72,70 @@ model Profile {
   themePreference    String?  @default("dark")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
 }
 
 model Category {
-  id          String          @id @default(cuid())
-  name        String
-  slug        String          @unique
+  id String @id @default(cuid())
+  name String
+  slug String @unique
   description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   movies MovieCategory[]
-
   @@index([slug])
 }
 
 model Genre {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
+  id String @id @default(cuid())
+  name String
+  slug String @unique
   description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   movies MovieGenre[]
-
   @@index([slug])
 }
 
 model Movie {
-  id                 String        @id @default(cuid())
-  titleEn            String
-  titleTa            String
-  slug               String        @unique
-  descriptionEn      String
-  descriptionTa      String
-  posterUrl          String
-  backdropUrl        String
-  trailerUrl         String?
-  videoUrl           String?
-  language           String        @default("ta")
-  audioLanguages     String[]
-  subtitleLanguages  String[]
-  releaseYear        Int
-  runtimeMinutes     Int
-  ageRating          String
-  rating             Float         @default(0)
-  movieType          MovieType     @default(PREMIUM)
-  isFeatured         Boolean       @default(false)
-  isPublished        Boolean       @default(true)
-  contentStatus      ContentStatus @default(PUBLISHED)
-  allowedCountries   String[]
-  downloadPermission Boolean       @default(false)
-  licenseOwner       String?
-  licenseStartDate   DateTime?
-  licenseExpiryDate  DateTime?
-  watchCount         Int           @default(0)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  categories      MovieCategory[]
-  genres          MovieGenre[]
-  watchlists      Watchlist[]
-  watchHistory    WatchHistory[]
-  reviews         Review[]
-  reports         Report[]
+  id String @id @default(cuid())
+  titleEn String
+  titleTa String
+  slug String @unique
+  descriptionEn String
+  descriptionTa String
+  posterUrl String
+  backdropUrl String
+  trailerUrl String?
+  videoUrl String?
+  language String @default("ta")
+  audioLanguages String[]
+  subtitleLanguages String[]
+  releaseYear Int
+  runtimeMinutes Int
+  ageRating String
+  rating Float @default(0)
+  movieType MovieType @default(PREMIUM)
+  isFeatured Boolean @default(false)
+  isPublished Boolean @default(true)
+  contentStatus ContentStatus @default(PUBLISHED)
+  allowedCountries String[]
+  downloadPermission Boolean @default(false)
+  licenseOwner String?
+  licenseStartDate DateTime?
+  licenseExpiryDate DateTime?
+  watchCount Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  categories MovieCategory[]
+  genres MovieGenre[]
+  watchlists Watchlist[]
+  watchHistory WatchHistory[]
+  reviews Review[]
+  reports Report[]
   recommendations Recommendation[]
-  license         License?
-
+  license License?
   @@index([slug])
   @@index([contentStatus])
   @@index([movieType])
@@ -191,206 +146,170 @@ model Movie {
 }
 
 model MovieCategory {
-  movieId    String
+  movieId String
   categoryId String
-
-  movie    Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-
   @@id([movieId, categoryId])
   @@index([movieId])
   @@index([categoryId])
 }
-
 model MovieGenre {
   movieId String
   genreId String
-
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
   genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
-
   @@id([movieId, genreId])
   @@index([movieId])
   @@index([genreId])
 }
-
 model Watchlist {
-  id        String   @id @default(cuid())
-  userId    String
-  movieId   String
+  id String @id @default(cuid())
+  userId String
+  movieId String
   createdAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
   @@unique([userId, movieId])
   @@index([userId])
   @@index([movieId])
 }
-
 model WatchHistory {
-  id            String   @id @default(cuid())
-  userId        String
-  movieId       String
-  progress      Int      @default(0)
+  id String @id @default(cuid())
+  userId String
+  movieId String
+  progress Int @default(0)
   lastWatchedAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
   @@unique([userId, movieId])
   @@index([userId])
   @@index([movieId])
   @@index([lastWatchedAt])
 }
-
 model Subscription {
-  id           String             @id @default(cuid())
-  userId       String
-  plan         PlanType
+  id String @id @default(cuid())
+  userId String
+  plan PlanType
   billingCycle BillingCycle
-  status       SubscriptionStatus @default(ACTIVE)
-  startDate    DateTime           @default(now())
-  endDate      DateTime?
-  price        Float
-  isAutoRenew  Boolean            @default(true)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status SubscriptionStatus @default(ACTIVE)
+  startDate DateTime @default(now())
+  endDate DateTime?
+  price Float
+  isAutoRenew Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   payments Payment[]
-
   @@index([userId])
   @@index([status])
   @@index([plan])
 }
-
 model Payment {
-  id             String        @id @default(cuid())
-  userId         String
+  id String @id @default(cuid())
+  userId String
   subscriptionId String?
-  amount         Float
-  currency       String        @default("INR")
-  provider       String        @default("razorpay")
-  status         PaymentStatus @default(PENDING)
-  paymentMethod  String?
-  transactionId  String?
-  metadata       Json?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount Float
+  currency String @default("INR")
+  provider String @default("razorpay")
+  status PaymentStatus @default(PENDING)
+  paymentMethod String?
+  transactionId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-
   @@index([userId])
   @@index([status])
   @@index([transactionId])
 }
-
 model Advertisement {
-  id          String    @id @default(cuid())
-  title       String
-  type        AdType
-  mediaUrl    String?
-  content     String?
+  id String @id @default(cuid())
+  title String
+  type AdType
+  mediaUrl String?
+  content String?
   redirectUrl String?
-  isActive    Boolean   @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
+  isActive Boolean @default(true)
+  startDate DateTime?
+  endDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@index([isActive])
   @@index([type])
 }
-
 model License {
-  id              String        @id @default(cuid())
-  movieId         String        @unique
-  owner           String
-  status          LicenseStatus @default(ACTIVE)
-  startDate       DateTime
-  expiryDate      DateTime
+  id String @id @default(cuid())
+  movieId String @unique
+  owner String
+  status LicenseStatus @default(ACTIVE)
+  startDate DateTime
+  expiryDate DateTime
   allowedCountries String[]
-  downloadAllowed Boolean       @default(false)
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
+  downloadAllowed Boolean @default(false)
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
   @@index([status])
   @@index([expiryDate])
 }
-
 model Review {
-  id        String   @id @default(cuid())
-  userId    String
-  movieId   String
-  rating    Float
-  comment   String?
+  id String @id @default(cuid())
+  userId String
+  movieId String
+  rating Float
+  comment String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
   @@unique([userId, movieId])
   @@index([movieId])
   @@index([rating])
 }
-
 model Report {
-  id          String   @id @default(cuid())
-  userId      String
-  movieId     String?
-  type        String
+  id String @id @default(cuid())
+  userId String
+  movieId String?
+  type String
   description String
-  status      String   @default("OPEN")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie? @relation(fields: [movieId], references: [id], onDelete: SetNull)
-
   @@index([userId])
   @@index([status])
 }
-
 model Recommendation {
-  id        String   @id @default(cuid())
-  userId    String
-  movieId   String
-  score     Float    @default(0)
-  reason    String?
+  id String @id @default(cuid())
+  userId String
+  movieId String
+  score Float @default(0)
+  reason String?
   createdAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
   @@index([userId])
   @@index([score])
 }
-
 model AdminUser {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id String @id @default(cuid())
+  userId String @unique
   createdAt DateTime @default(now())
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
 }
-
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String?
-  expires      DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id String @id @default(cuid())
+  sessionToken String @unique
+  userId String?
+  expires DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@index([sessionToken])
 }
