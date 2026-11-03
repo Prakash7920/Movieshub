@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const country = getVercelViewerCountry(request.headers);
+  if (!country) {
+    return NextResponse.json(
+      { error: "Your viewing country could not be verified. Please try again from the live MoviesHub website." },
+      { status: 503, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get("search") ?? "").trim().slice(0, 100);
@@ -19,7 +28,7 @@ export async function GET(request: Request) {
           status: "ACTIVE" as const,
           startDate: { lte: now },
           expiryDate: { gt: now },
-          allowedCountries: { isEmpty: false },
+          allowedCountries: { has: country },
         },
       },
     };
@@ -60,7 +69,7 @@ export async function GET(request: Request) {
                   status: "ACTIVE",
                   startDate: { lte: now },
                   expiryDate: { gt: now },
-                  allowedCountries: { isEmpty: false },
+                  allowedCountries: { has: country },
                 },
               },
             },
@@ -78,9 +87,9 @@ export async function GET(request: Request) {
         genres: movie.genres.map((item) => item.genre.slug),
       })),
       genres,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Movie catalogue fetch failed:", error);
-    return NextResponse.json({ error: "Unable to load the movie catalogue." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to load the movie catalogue." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
