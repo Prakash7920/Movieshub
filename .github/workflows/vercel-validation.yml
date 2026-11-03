@@ -64,6 +64,9 @@ jobs:
       - name: Unit and security primitive tests
         run: npm run test
 
+      - name: Database security integration tests
+        run: npm run test:integration
+
       - name: Build Next.js application
         run: npm run build
 
