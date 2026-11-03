@@ -4,6 +4,7 @@ import { createOneTimeToken, hashOneTimeToken, isWellFormedOneTimeToken } from "
 import { getClientIp } from "../lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "../lib/security/request-guards";
 import { getVercelViewerCountry } from "../lib/licensing/territory";
+import { getSessionRevocationId } from "../lib/security/session-revocation";
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();
@@ -89,4 +90,15 @@ test("territory resolver normalizes valid proxy country codes and fails closed",
   assert.equal(getVercelViewerCountry(new Headers({ "x-vercel-ip-country": "US" })), "US");
   assert.equal(getVercelViewerCountry(new Headers({ "x-vercel-ip-country": "India" })), null);
   assert.equal(getVercelViewerCountry(new Headers()), null);
+});
+
+test("session revocation IDs are stable and prefer the JWT identifier", () => {
+  assert.equal(getSessionRevocationId({ jti: "session-jti" }), "jti:session-jti");
+  const first = getSessionRevocationId({ sub: "user-1", iat: 100, exp: 200 });
+  const second = getSessionRevocationId({ sub: "user-1", iat: 100, exp: 200 });
+  const different = getSessionRevocationId({ sub: "user-1", iat: 101, exp: 200 });
+  assert.ok(first);
+  assert.equal(first, second);
+  assert.notEqual(first, different);
+  assert.equal(getSessionRevocationId({ sub: "user-1" }), null);
 });
