@@ -3,7 +3,11 @@ export function isSameOriginRequest(request: Request): boolean {
   if (!source) return false;
 
   try {
-    return new URL(source).origin === new URL(request.url).origin;
+    const configuredUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+    const expectedOrigin = configuredUrl
+      ? new URL(configuredUrl).origin
+      : new URL(request.url).origin;
+    return new URL(source).origin === expectedOrigin;
   } catch {
     return false;
   }
