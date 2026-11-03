@@ -43,7 +43,7 @@ export async function GET(request: Request) {
   try {
     const result = await getRecommendationAssistantData(sessionUser.email, country);
     if (result.error) {
-      console.error("Recommendation data unavailable:", result.error);
+      logSafeError("Recommendation data unavailable", result.error);
       return NextResponse.json(
         { error: "Recommendations are temporarily unavailable." },
         { status: 503, headers: { "Cache-Control": "private, no-store" } },
