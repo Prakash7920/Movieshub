@@ -31,6 +31,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/movieshub_test?schema=public
       DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/movieshub_test?schema=public
       NEXTAUTH_SECRET: ci-only-secret-value-with-more-than-32-characters
+      CRON_SECRET: ci-only-cron-secret-value-with-more-than-32-characters
       NEXTAUTH_URL: http://127.0.0.1:3000
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       DEMO_MODE: "false"
@@ -54,6 +55,9 @@ jobs:
 
       - name: Apply migrations to isolated CI database
         run: npx prisma migrate deploy
+
+      - name: Verify migration state
+        run: npx prisma migrate status
 
       - name: Lint
         run: npm run lint
