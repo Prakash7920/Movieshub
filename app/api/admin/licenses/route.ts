@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 
 async function requireAdmin() {
-  let session;
+  let session: Awaited<ReturnType<typeof getServerSession>> | null = null;
   try {
     session = await getServerSession(authOptions);
   } catch (error) {
@@ -19,7 +19,7 @@ async function requireAdmin() {
   }
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
-  let user;
+  let user: { role: string; isBanned: boolean } | null;
   try {
     user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
   } catch (error) {
