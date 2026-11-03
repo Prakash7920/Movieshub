@@ -11,13 +11,29 @@ async function getUserId() {
   return user?.id ?? null;
 }
 
+function currentLicenceFilter() {
+  const now = new Date();
+  return {
+    isPublished: true,
+    contentStatus: "PUBLISHED" as const,
+    license: {
+      is: {
+        status: "ACTIVE" as const,
+        startDate: { lte: now },
+        expiryDate: { gt: now },
+        allowedCountries: { isEmpty: false },
+      },
+    },
+  };
+}
+
 export async function GET() {
   try {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to view watch history." }, { status: 401 });
 
     const items = await prisma.watchHistory.findMany({
-      where: { userId },
+      where: { userId, movie: currentLicenceFilter() },
       orderBy: { lastWatchedAt: "desc" },
       select: {
         id: true,
@@ -55,10 +71,10 @@ export async function POST(request: Request) {
     if (!Number.isInteger(progress) || progress < 0 || progress > 100) return NextResponse.json({ error: "Progress must be a whole number from 0 to 100." }, { status: 400 });
 
     const movie = await prisma.movie.findFirst({
-      where: { slug, isPublished: true, contentStatus: "PUBLISHED" },
+      where: { slug, ...currentLicenceFilter() },
       select: { id: true },
     });
-    if (!movie) return NextResponse.json({ error: "Movie not found in the published catalogue." }, { status: 404 });
+    if (!movie) return NextResponse.json({ error: "Movie not found in the currently licensed catalogue." }, { status: 404 });
 
     const item = await prisma.watchHistory.upsert({
       where: { userId_movieId: { userId, movieId: movie.id } },
