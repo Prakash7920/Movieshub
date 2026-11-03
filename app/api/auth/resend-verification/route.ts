@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const verificationUrl = `${appUrl}/auth/verify-email?token=${oneTimeToken.token}`;
+    const verificationUrl = `${appUrl}/auth/verify-email#token=${oneTimeToken.token}`;
     const delivery = await sendTransactionalEmail({
       to: user.email,
       subject: "Verify your MoviesHub email",
