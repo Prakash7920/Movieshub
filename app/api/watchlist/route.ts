@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
-  if (!hasValidJsonContentType(request, 8 * 1024)) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415 });
+  if (!(await hasValidJsonContentType(request, 8 * 1024))) return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415 });
   try {
     const country = getVercelViewerCountry(request.headers);
     if (!country) return countryUnavailable();
