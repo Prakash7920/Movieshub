@@ -101,6 +101,9 @@ test("registration, login, logout and protected routes work on mobile", async ({
 
   await page.locator('header button[aria-label="Logout"]').click();
   await expect(page).toHaveURL("/");
+  const registeredUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  expect(registeredUser).not.toBeNull();
+  await expect.poll(async () => prisma.revokedSessionToken.count({ where: { userId: registeredUser!.id } })).toBeGreaterThan(0);
   const revokedSession = await concurrentPage.request.get("/api/subscription/status");
   expect(revokedSession.status()).toBe(401);
   await concurrentContext.close();
@@ -185,7 +188,7 @@ test("email verification is expiring-token based and single-use", async ({ page 
   expect(saved?.isEmailVerified).toBe(true);
 
   await page.goto(`/auth/verify-email?token=${oneTimeToken.token}`);
-  await expect(page.getByRole("alert")).toContainText("already used");
+  await expect(page.locator('p[role="alert"]')).toContainText("already used");
 });
 
 test("admin APIs reject anonymous and ordinary users, and ignore role escalation at registration", async ({ page, request }) => {
