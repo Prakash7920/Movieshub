@@ -4,15 +4,26 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
-import { mockMovies } from "@/lib/mock-data";
 
-type WatchlistItem = { movie: { slug: string } };
+type WatchlistItem = {
+  id: string;
+  movie: {
+    slug: string;
+    titleEn: string;
+    titleTa: string;
+    posterUrl: string;
+    releaseYear: number;
+    language: string;
+    rating: number;
+    genre: string;
+  };
+};
 
-async function loadWatchlist(): Promise<string[]> {
+async function loadWatchlist(): Promise<WatchlistItem[]> {
   const response = await fetch("/api/watchlist", { cache: "no-store" });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "Unable to load watchlist.");
-  return (data.items as WatchlistItem[]).map((item) => item.movie.slug);
+  return data.items as WatchlistItem[];
 }
 
 async function saveWatchlistMovie(slug: string, saved: boolean) {
@@ -34,7 +45,7 @@ export function WatchlistToggle({ slug }: { slug: string }) {
   useEffect(() => {
     let active = true;
     loadWatchlist()
-      .then((slugs) => { if (active) setSaved(slugs.includes(slug)); })
+      .then((items) => { if (active) setSaved(items.some((item) => item.movie.slug === slug)); })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -72,7 +83,7 @@ export function WatchlistToggle({ slug }: { slug: string }) {
 }
 
 export function WatchlistContent() {
-  const [slugs, setSlugs] = useState<string[]>([]);
+  const [items, setItems] = useState<WatchlistItem[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [removing, setRemoving] = useState("");
@@ -80,7 +91,7 @@ export function WatchlistContent() {
   useEffect(() => {
     let active = true;
     loadWatchlist()
-      .then((items) => { if (active) setSlugs(items); })
+      .then((result) => { if (active) setItems(result); })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -91,7 +102,7 @@ export function WatchlistContent() {
     setError("");
     try {
       await saveWatchlistMovie(slug, false);
-      setSlugs((current) => current.filter((item) => item !== slug));
+      setItems((current) => current.filter((item) => item.movie.slug !== slug));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to remove this movie.");
     } finally {
@@ -100,16 +111,9 @@ export function WatchlistContent() {
   }
 
   if (!ready) return <p className="py-12 text-center text-sm text-gray-400">Loading your watchlist...</p>;
+  if (error && items.length === 0) return <p role="alert" className="py-10 text-center text-sm text-red-300">{error}</p>;
 
-  if (error && slugs.length === 0) {
-    return <p role="alert" className="py-10 text-center text-sm text-red-300">{error}</p>;
-  }
-
-  const savedMovies = slugs
-    .map((slug) => mockMovies.find((movie) => movie.slug === slug))
-    .filter((movie): movie is (typeof mockMovies)[number] => Boolean(movie));
-
-  if (savedMovies.length === 0) {
+  if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/15 px-5 py-14 text-center">
         <Bookmark className="mx-auto h-8 w-8 text-gray-500" />
@@ -124,7 +128,7 @@ export function WatchlistContent() {
     <div>
       {error && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-        {savedMovies.map((movie) => (
+        {items.map(({ movie }) => (
           <article key={movie.slug} className="overflow-hidden rounded-2xl border border-white/10 bg-card/70">
             <Link href={`/movies/${movie.slug}`} className="block">
               <div className="relative aspect-[2/3] bg-gray-900">
