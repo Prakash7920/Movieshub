@@ -14,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
     "test": "tsx --test tests/*.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:integration": "tsx --test tests/*.integration.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
