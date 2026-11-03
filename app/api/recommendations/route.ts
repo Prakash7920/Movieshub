@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
       { headers: { "Cache-Control": "private, no-store, max-age=0" } },
     );
   } catch (error) {
-    console.error("Recommendation request failed:", error);
+    logSafeError("Recommendation request failed", error);
     return NextResponse.json(
       { error: "Unable to load recommendations." },
       { status: 500, headers: { "Cache-Control": "no-store" } },
