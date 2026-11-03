@@ -100,7 +100,7 @@ export async function PATCH(request: Request) {
           where: { movieId },
           data: {
             status: LicenseStatus.ACTIVE,
-            notes: [current.notes, "VERIFIED AGREEMENT REFERENCE: " + reference, "VERIFIED BY ADMIN USER ID: " + auth.userId, "VERIFIED AT: " + now.toISOString()].filter(Boolean).join("\\n"),
+            notes: [current.notes, "VERIFIED AGREEMENT REFERENCE: " + reference, "VERIFIED BY ADMIN USER ID: " + auth.userId, "VERIFIED AT: " + now.toISOString()].filter(Boolean).join("\n"),
           },
         });
         await tx.movie.update({
@@ -114,20 +114,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Licence marked ACTIVE after the admin verification confirmation. Downloads remain disabled.", status: updated.status });
     }
 
-    const license = await prisma.license.findUnique({ where: { movieId } });
-    if (!license) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
-
     if (typeof b.reason !== "string" || b.reason.trim().length < 3) {
       return NextResponse.json({ error: "Enter a brief rejection reason." }, { status: 400 });
     }
     const rejectionReason = b.reason.trim().slice(0, 500);
     const reviewedAt = new Date();
-    await prisma.$transaction(async tx => {
+    const rejected = await prisma.$transaction(async tx => {
+      const current = await tx.license.findUnique({ where: { movieId } });
+      if (!current) return false;
       await tx.license.update({
         where: { movieId },
         data: {
           status: LicenseStatus.REJECTED,
-          notes: [license.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + rejectionReason, "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\n"),
+          notes: [current.notes, "REJECTED BY ADMIN USER ID: " + auth.userId, "REJECTION REASON: " + rejectionReason, "REVIEWED AT: " + reviewedAt.toISOString()].filter(Boolean).join("\\n"),
         },
       });
       const movie = await tx.movie.findUnique({ where: { id: movieId }, select: { isPublished: true } });
@@ -137,7 +136,9 @@ export async function PATCH(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
-    });
+      return true;
+    }, { isolationLevel: "Serializable" });
+    if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
     return NextResponse.json({ message: "Licence marked REJECTED. Any published movie was automatically unpublished; re-approval will require a fresh manual publish action.", status: "REJECTED" });
   } catch (error) {
     console.error("Admin licence review failed:", error);
