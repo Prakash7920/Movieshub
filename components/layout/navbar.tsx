@@ -26,7 +26,7 @@ export function Navbar() {
     let active = true;
 
     getSession().then((session) => {
-      if (active) setIsLoggedIn(Boolean(session?.user));
+      if (active) setIsLoggedIn(Boolean(session?.user?.id));
     }).catch(() => {
       if (active) setIsLoggedIn(false);
     });
