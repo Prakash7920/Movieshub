@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       data: { userId: user.id, tokenHash: oneTimeToken.tokenHash, expiresAt },
     });
 
-    const resetUrl = `${appUrl}/auth/reset-password?token=${oneTimeToken.token}`;
+    const resetUrl = `${appUrl}/auth/reset-password#token=${oneTimeToken.token}`;
     const delivery = await sendTransactionalEmail({
       to: user.email,
       subject: "Reset your MoviesHub password",
