@@ -65,7 +65,7 @@ Status meanings are used exactly as requested: **PASS**, **PENDING**, or **BLOCK
 | Health checks | PASS | Database-backed `/api/health` endpoint returns a minimal health status and is tested in Playwright. | `app/api/health/route.ts` | External uptime monitoring is not connected. |
 | Production error monitoring and alerts | BLOCKED | Safe logging and a health endpoint are present. | `lib/security/safe-log.ts`, health route | No monitoring provider/DSN or alerting account/configuration was available; auth-failure, abuse-spike, API-failure, and critical-error alerts are not verified. |
 | Production data preservation | PASS | No production database connection, migration, reset, truncate, delete, or restore command was run. CI used a disposable isolated PostgreSQL service. | CI workflow and additive migration files | Production preservation must be re-confirmed by the operator before deployment. |
-| Vercel Preview/production validation | BLOCKED | GitHub Actions CI is green. | `vercel.json`, deployment configuration | The Vercel status check reports a build-rate-limit failure (`upgradeToPro=build-rate-limit`). No Preview deployment or production deployment was validated. |
+| Vercel Preview/production validation | PENDING | GitHub Actions CI is green. Vercel bot later reported the branch Preview deployment as Ready. | `vercel.json`, deployment configuration, PR #2 | The combined Vercel status still contains an earlier build-rate-limit failure, and the Preview URL could not be opened by the available validation browser. Live Preview flows and production deployment remain unverified. |
 
 ## 3. CI evidence
 
@@ -81,7 +81,7 @@ The latest GitHub Actions validation runs completed successfully:
 - Next.js production build: PASS.
 - Playwright: **12 passed (18.5 seconds)**.
 
-The Vercel check is separate from GitHub Actions and is **BLOCKED** by the reported build-rate limit.
+The Vercel combined status still shows an earlier build-rate-limit failure. A later Vercel bot comment reports a Ready Preview deployment at `https://movieshub-git-phase-3-production-validation-security-nexa-cead.vercel.app`. The Preview URL was not accessible to the available browser validation tool, so live Preview validation remains **PENDING**; no production deployment was attempted.
 
 ## 4. Files and implementation groups
 
@@ -114,7 +114,7 @@ Before production:
 6. Confirm Vercel Cron authorization and the 04:00 UTC cleanup schedule.
 7. Confirm Neon backup/PITR retention, encryption, least-privilege access, RPO/RTO, and perform restore validation on a separate staging branch.
 8. Configure an external error-monitoring provider and verify redaction and alerts.
-9. Resolve the Vercel build-rate limit, deploy Preview, and test HTTPS cookies, territory headers/spoofing, performance, and migration behavior on staging.
+9. Open the Vercel-reported Ready Preview deployment and test HTTPS cookies, territory headers/spoofing, performance, and migration behavior on staging. Confirm the earlier build-rate-limit status is stale or resolved before production deployment.
 10. After all PENDING/BLOCKED requirements are validated, update this report and the Master Roadmap before considering Phase 3 complete.
 
 ## 7. Data-safety statement
@@ -123,4 +123,4 @@ No production database command was run. Migrations and database integration test
 
 ## 8. Phase boundary
 
-Phase 3 remains **PENDING** because email delivery, staging/backup restore, real Vercel territory validation, performance, monitoring, and Preview deployment are outstanding. No Phase 4 or later work was started.
+Phase 3 remains **PENDING** because email delivery, staging/backup restore, real Vercel territory validation, performance, monitoring, and live Preview verification are outstanding. No Phase 4 or later work was started.
