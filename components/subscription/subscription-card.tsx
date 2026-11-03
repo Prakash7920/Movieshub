@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Check, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Movie } from "@/lib/mock-data";
 
 const planData = [
   { name: "Free", price: 0, description: "Selected free movies and standard quality.", features: ["Up to 5 free titles", "Ads enabled", "Standard quality"] },
@@ -113,6 +112,3 @@ export function PaymentFailureState({ reason }: { reason?: string }) {
   );
 }
 
-export function getSignedVideoUrl(movie: { videoUrl: string }) {
-  return movie.videoUrl ?? "https://www.w3schools.com/html/mov_bbb.mp4";
-}
