@@ -46,11 +46,16 @@ async function requireAdmin() {
 export async function GET() {
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
-  const movies = await prisma.movie.findMany({
-    orderBy: { titleEn: "asc" },
-    select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
-  });
-  return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+  try {
+    const movies = await prisma.movie.findMany({
+      orderBy: { titleEn: "asc" },
+      select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
+    });
+    return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+  } catch (error) {
+    logSafeError("Admin licence list failed", error);
+    return NextResponse.json({ error: "Unable to load licence records." }, { status: 503 });
+  }
 }
 
 export async function POST(request: Request) {
