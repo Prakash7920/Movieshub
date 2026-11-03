@@ -21,6 +21,7 @@ export function Navbar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -39,7 +40,17 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
-    await signOut({ callbackUrl: "/" });
+    setLogoutError(null);
+    try {
+      const response = await fetch("/api/auth/revoke-session", { method: "POST", cache: "no-store" });
+      if (!response.ok && response.status !== 401) {
+        throw new Error("Secure logout could not be completed.");
+      }
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setIsSigningOut(false);
+      setLogoutError("Secure logout could not be completed. Please try again.");
+    }
   };
 
   return (
@@ -86,6 +97,11 @@ export function Navbar() {
           )}
         </div>
       </div>
+      {logoutError && (
+        <div className="page-shell pb-2">
+          <p role="alert" className="text-xs text-red-300">{logoutError}</p>
+        </div>
+      )}
     </header>
   );
 }
