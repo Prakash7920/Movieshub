@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { getRecommendationAssistantData } from "@/lib/recommendation-engine";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,18 @@ export async function GET(request: Request) {
       { error: "Sign in to view your recommendations." },
       { status: 401, headers: { "Cache-Control": "no-store" } },
     );
+  }
+
+  try {
+    const limit = await consumeRateLimit("recommendations-user", sessionUser.id, 30, 60);
+    if (!limit.allowed) {
+      return NextResponse.json({ error: "Too many recommendation requests. Please try again shortly." }, {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" },
+      });
+    }
+  } catch {
+    return NextResponse.json({ error: "Recommendations are temporarily unavailable." }, { status: 503 });
   }
 
   const country = getVercelViewerCountry(request.headers);
