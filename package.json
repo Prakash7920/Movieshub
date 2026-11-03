@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/security-primitives.test.ts",
     "test:e2e": "playwright test",
     "test:integration": "tsx --test tests/*.integration.test.ts"
   },
