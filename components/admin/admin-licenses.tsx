@@ -1,13 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 type MovieOption={id:string;titleEn:string;isPublished:boolean;license:null|{id:string;owner:string;status:string;startDate:string;expiryDate:string;allowedCountries:string[];notes:string|null}};
 type Form={movieId:string;owner:string;startDate:string;expiryDate:string;countries:string;notes:string};
 const empty:Form={movieId:"",owner:"",startDate:"",expiryDate:"",countries:"IN",notes:""};
 export default function AdminLicenses(){
  const [movies,setMovies]=useState<MovieOption[]>([]),[form,setForm]=useState<Form>(empty),[refs,setRefs]=useState<Record<string,string>>({}),[checks,setChecks]=useState<Record<string,boolean>>({});
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- async function load(){try{const r=await fetch("/api/admin/licenses",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error);setMovies(d.movies);if(!form.movieId&&d.movies.length)setForm(v=>({...v,movieId:d.movies[0].id}));}catch(e){setError(e instanceof Error?e.message:"Unable to load licences.");}}
- useEffect(()=>{void load();},[]);
+ const load=useCallback(async()=>{try{const r=await fetch("/api/admin/licenses",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error);setMovies(d.movies);if(!form.movieId&&d.movies.length)setForm(v=>({...v,movieId:d.movies[0].id}));}catch(e){setError(e instanceof Error?e.message:"Unable to load licences.");}},[form.movieId]);
+ useEffect(()=>{void load();},[load]);
  async function save(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");setMessage("");try{const r=await fetch("/api/admin/licenses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(!r.ok)throw new Error(d.error);setMessage(d.message);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to save licence.");}finally{setBusy(false);}}
  async function review(m:MovieOption,status:"ACTIVE"|"REJECTED"){
   const agreementReference=refs[m.id]??"";
