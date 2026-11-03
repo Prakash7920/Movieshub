@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { WatchlistToggle } from "@/components/movies/watchlist";
 import { AddHistoryPreview } from "@/components/movies/watch-history";
 
@@ -10,6 +12,10 @@ export const runtime = "nodejs";
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const requestHeaders = await headers();
+  const country = getVercelViewerCountry(requestHeaders);
+  if (!country) notFound();
+
   const now = new Date();
   const movie = await prisma.movie.findFirst({
     where: {
@@ -21,7 +27,7 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
           status: "ACTIVE",
           startDate: { lte: now },
           expiryDate: { gt: now },
-          allowedCountries: { isEmpty: false },
+          allowedCountries: { has: country },
         },
       },
     },
