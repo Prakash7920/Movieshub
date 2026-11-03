@@ -79,7 +79,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill("Incorrect-Test-Password!");
   await page.getByRole("button", { name: "Login", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
+  await expect(page.locator('p[role="alert"]')).toContainText("Email or password is incorrect");
 
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login", exact: true }).click();
@@ -216,6 +216,8 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   expect(forbidden.status()).toBe(403);
 
   await page.locator('header button[aria-label="Logout"]').click();
+  await expect(page).toHaveURL("/");
+  await expect(page.locator('header a[href="/auth/login"]')).toBeVisible();
   const adminEmail = `admin-${Date.now()}@movieshub-e2e.test`;
   await createUser(adminEmail, Role.ADMIN);
   await page.goto("/auth/login");
@@ -386,7 +388,10 @@ test("watchlist ownership is derived from the authenticated user, not request fi
   expect((await ownerHistory.json()).items.some((item: { movie: { slug: string } }) => item.movie.slug === slug)).toBe(true);
 
   await page.locator('header button[aria-label="Logout"]').click();
+  await expect(page).toHaveURL("/");
+  await expect(page.locator('header a[href="/auth/login"]')).toBeVisible();
   await page.goto("/auth/login");
+  await expect(page.locator('input[type="email"]')).toBeVisible();
   await page.locator('input[type="email"]').fill(other.email);
   await page.locator('input[type="password"]').fill(testPassword);
   await page.getByRole("button", { name: "Login", exact: true }).click();
