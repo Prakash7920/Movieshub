@@ -28,7 +28,7 @@ export async function GET() {
       }),
       prisma.genre.findMany({ orderBy: { name: "asc" }, select: { name: true, slug: true } }),
     ]);
-    return NextResponse.json({ movies: movies.map(m => ({ ...m, genre: m.genres.map(g => g.genre.name).join(", ") })), genres });
+    return NextResponse.json({ movies: movies.map(m => ({ ...m, genre: m.genres.map(g => g.genre.name).join(", ") })), genres }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     console.error("Admin catalogue read failed:", error);
     return NextResponse.json({ error: "Unable to load admin catalogue." }, { status: 500 });
