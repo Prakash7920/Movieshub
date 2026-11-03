@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { logSafeError } from "@/lib/security/safe-log";
+import { getSessionRevocationId } from "@/lib/security/session-revocation";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -54,7 +55,7 @@ export const authOptions: NextAuthOptions = {
   ],
   events: {
     async signOut({ token }) {
-      const tokenId = typeof token?.jti === "string" ? token.jti : null;
+      const tokenId = token ? getSessionRevocationId(token) : null;
       const userId = typeof token?.sub === "string" ? token.sub : null;
       if (tokenId && userId && typeof token?.exp === "number") {
         try {
@@ -72,7 +73,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
-      const tokenId = typeof token.jti === "string" ? token.jti : null;
+      const tokenId = getSessionRevocationId(token);
       if (tokenId) {
         const revoked = await prisma.revokedSessionToken.findUnique({
           where: { tokenId },
