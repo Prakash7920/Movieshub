@@ -91,8 +91,8 @@ export async function POST(request: Request) {
       const verificationUrl = `${appUrl}/auth/verify-email#token=${oneTimeToken.token}`;
       const delivery = await sendTransactionalEmail({
         to: normalizedEmail,
-        subject: "Verify your MoviesHub email",
-        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Verify your MoviesHub email</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p></div>`,
+        subject: "Verify your NexaFilm email",
+        html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Welcome to NexaFilm</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p><p style="color:#666;font-size:12px">NexaFilm · One Platform. Every Language. Endless Stories.</p></div>`,
       });
       verificationSent = delivery.sent;
       if (!delivery.sent) {
