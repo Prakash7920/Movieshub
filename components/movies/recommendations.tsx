@@ -57,7 +57,11 @@ export function Recommendations() {
       {!loading && error && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <p className="text-gray-200">{error}</p>
-          <Link href="/auth/login" className="mt-4 inline-flex rounded-full bg-red-600 px-5 py-3 text-white">Sign in</Link>
+          {error.toLowerCase().includes("sign in") || error.toLowerCase().includes("unauthorized") ? (
+            <Link href="/auth/login" className="mt-4 inline-flex rounded-full bg-red-600 px-5 py-3 text-white">Sign in</Link>
+          ) : (
+            <button type="button" onClick={() => window.location.reload()} className="mt-4 inline-flex rounded-full border border-white/20 px-5 py-3 text-white">Try again</button>
+          )}
         </div>
       )}
 
