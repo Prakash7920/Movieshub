@@ -40,10 +40,16 @@ export function LoginForm() {
       }
 
       const requestedPath = searchParams.get("callbackUrl");
-      const destination =
-        requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
-          ? requestedPath
-          : "/dashboard";
+      let destination = "/dashboard";
+      if (requestedPath?.startsWith("/") && !requestedPath.startsWith("//")) {
+        try {
+          if (new URL(requestedPath, window.location.origin).origin === window.location.origin) {
+            destination = requestedPath;
+          }
+        } catch {
+          destination = "/dashboard";
+        }
+      }
 
       router.push(destination);
       router.refresh();
