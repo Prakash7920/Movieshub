@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { Prisma, ContentStatus, MovieType } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
@@ -39,7 +40,7 @@ export async function GET() {
     ]);
     return NextResponse.json({ movies: movies.map(m => ({ ...m, genre: m.genres.map(g => g.genre.name).join(", ") })), genres }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
-    console.error("Admin catalogue read failed:", error);
+    logSafeError("Admin catalogue read failed", error);
     return NextResponse.json({ error: "Unable to load admin catalogue." }, { status: 500 });
   }
 }
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The movie changed during editing. Reload the draft and try again." }, { status: 409 });
-    console.error("Admin movie create failed:", error);
+    logSafeError("Admin movie create failed", error);
     return NextResponse.json({ error: "Unable to create movie." }, { status: 500 });
   }
 }
@@ -127,7 +128,7 @@ export async function PATCH(request: Request) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during publishing. Please review the licence and try again." }, { status: 409 });
     }
-    console.error("Admin movie update failed:", error);
+    logSafeError("Admin movie update failed", error);
     return NextResponse.json({ error: "Unable to update movie." }, { status: 500 });
   }
 }
@@ -177,7 +178,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ message: "Draft movie updated successfully." });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
-    console.error("Admin movie edit failed:", error);
+    logSafeError("Admin movie edit failed", error);
     return NextResponse.json({ error: "Unable to update draft movie." }, { status: 500 });
   }
 }
@@ -201,7 +202,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ message: "Draft movie deleted." });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The movie changed during deletion. Reload the draft and try again." }, { status: 409 });
-    console.error("Admin movie delete failed:", error);
+    logSafeError("Admin movie delete failed", error);
     return NextResponse.json({ error: "Unable to delete draft movie." }, { status: 500 });
   }
 }
