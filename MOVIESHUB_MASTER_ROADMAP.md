@@ -1,4 +1,6 @@
-# MoviesHub Master Roadmap
+# NexaFilm Master Roadmap
+
+> Historical repository name: `movieshub`. Public-facing product brand: **NexaFilm**.
 
 ## Roadmap source and scope
 
@@ -37,3 +39,7 @@ The detailed requirement-by-requirement implementation, test evidence, changed f
 - Verify the Vercel-reported Ready Preview deployment with live browser flows; the combined Vercel status still contains an earlier build-rate-limit failure.
 
 **Phase 3 remains PENDING. Do not begin Phase 4 until the outstanding items are resolved and the requirement ledger is updated with evidence.**
+
+## NexaFilm rebrand note
+
+The public-facing name, homepage positioning, navigation identity, metadata, footer, account screens, playback notice, and transactional email copy use NexaFilm. The GitHub repository slug, package name, deployment URLs, and existing environment values remain unchanged pending a separately verified domain and hosting configuration update.
