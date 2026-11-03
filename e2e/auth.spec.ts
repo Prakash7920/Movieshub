@@ -474,3 +474,32 @@ test("rate-limit cleanup cron requires its bearer secret", async ({ page }) => {
   expect(authorized.status()).toBe(200);
   expect((await authorized.json()).status).toBe("ok");
 });
+
+test("registration throttling returns 429 after the configured email window", async ({ page }) => {
+  const email = `rate-limit-${Date.now()}@movieshub-e2e.test`;
+  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const data = { name: "Rate Limit Test", email, password: testPassword, confirmPassword: testPassword };
+  const first = await page.request.post("/api/auth/register", { headers, data });
+  const second = await page.request.post("/api/auth/register", { headers, data });
+  const third = await page.request.post("/api/auth/register", { headers, data });
+  const fourth = await page.request.post("/api/auth/register", { headers, data });
+  expect(first.status()).toBe(201);
+  expect(second.status()).toBe(409);
+  expect(third.status()).toBe(409);
+  expect(fourth.status()).toBe(429);
+  expect(fourth.headers()["retry-after"]).toBeTruthy();
+});
+
+test("password reset requests do not reveal whether an email exists", async ({ page }) => {
+  const knownEmail = `forgot-known-${Date.now()}@movieshub-e2e.test`;
+  await createUser(knownEmail);
+  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const known = await page.request.post("/api/auth/forgot-password", { headers, data: { email: knownEmail } });
+  const unknown = await page.request.post("/api/auth/forgot-password", {
+    headers,
+    data: { email: `forgot-unknown-${Date.now()}@movieshub-e2e.test` },
+  });
+  expect(known.status()).toBe(202);
+  expect(unknown.status()).toBe(202);
+  expect(await known.json()).toEqual(await unknown.json());
+});
