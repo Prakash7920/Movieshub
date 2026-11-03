@@ -59,7 +59,7 @@ function buildFallbackResult(error?: string): RecommendationAssistantResult {
 }
 
 export async function getRecommendationAssistantData(
-  userEmail = "premium@movieshub.local",
+  userEmail: string | null | undefined,
   viewerCountry?: string | null,
 ): Promise<RecommendationAssistantResult> {
   const safeEmail = validateUserEmail(userEmail);
