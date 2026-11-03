@@ -51,7 +51,11 @@ test.afterAll(async () => {
 test("registration, login, logout and protected routes work on mobile", async ({ page }) => {
   const email = `register-${Date.now()}@movieshub-e2e.test`;
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/auth/register");
+  const registerResponse = await page.goto("/auth/register");
+  const securityHeaders = registerResponse?.headers() ?? {};
+  expect(securityHeaders["x-content-type-options"]).toBe("nosniff");
+  expect(securityHeaders["x-frame-options"]).toBe("DENY");
+  expect(securityHeaders["referrer-policy"]).toBe("strict-origin-when-cross-origin");
 
   const inputs = page.locator("form input");
   await inputs.nth(0).fill("E2E User");
@@ -76,6 +80,9 @@ test("registration, login, logout and protected routes work on mobile", async ({
   await page.getByRole("button", { name: "Login" }).click();
 
   await expect(page).toHaveURL(/dashboard/);
+  const sessionCookie = (await page.context().cookies()).find((cookie) => cookie.name.includes("session-token"));
+  expect(sessionCookie?.httpOnly).toBe(true);
+  expect(sessionCookie?.sameSite).toBe("Lax");
   await expect(page.locator('header button[aria-label="Logout"]')).toBeVisible();
   const browserContext = page.context().browser();
   if (!browserContext) throw new Error("Browser context unavailable for concurrent-session test.");
