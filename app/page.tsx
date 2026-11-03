@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HomePage() {
   return (
     <main className="page-shell py-12">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-8 card-glow">
-        <p className="mb-3 text-sm uppercase tracking-[0.2em] text-accent">NexaFilm</p>
-        <h1 className="text-4xl font-bold md:text-6xl">One Platform. Every Language. Endless Stories.</h1>
+        <Image src="/nexafilm-logo.svg" alt="NexaFilm — One Platform. Every Language. Endless Stories." width={420} height={105} priority className="mb-5 h-auto w-full max-w-[420px]" />
+        <h1 className="text-4xl font-bold md:text-6xl">A world of cinema, in every language.</h1>
         <p className="mt-4 max-w-2xl text-lg text-gray-300">
           Discover a premium legal cinema experience spanning Tamil, Telugu, Malayalam, Kannada, Hindi, Bengali, Marathi, and more.
         </p>
