@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getServerSession } from "next-auth/next";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -18,6 +19,12 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!hasValidJsonContentType(request)) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   try {
     const session = await getServerSession(authOptions);
     const sessionUser = session?.user as { id?: string } | undefined;
