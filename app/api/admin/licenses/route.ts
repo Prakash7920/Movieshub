@@ -47,25 +47,31 @@ export async function POST(request: Request) {
     if (!allowedCountries.length || allowedCountries.length > 30 || allowedCountries.some(x => !/^[A-Z]{2}$/.test(x))) {
       return NextResponse.json({ error: "Enter permitted countries as two-letter ISO codes, separated by commas (for example IN, SG)." }, { status: 400 });
     }
-    const movie = await prisma.movie.findUnique({ where: { id: b.movieId }, select: { id: true } });
-    if (!movie) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
-    const license = await prisma.$transaction(async tx => {
+    const licenseResult = await prisma.$transaction(async tx => {
+      const movie = await tx.movie.findUnique({
+        where: { id: b.movieId as string },
+        select: { id: true, isPublished: true },
+      });
+      if (!movie) return { kind: "NOT_FOUND" as const };
+
       const saved = await tx.license.upsert({
         where: { movieId: b.movieId as string },
         create: { movieId: b.movieId as string, owner: (b.owner as string).trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
         update: { owner: (b.owner as string).trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
         select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true },
       });
-      const currentMovie = await tx.movie.findUnique({ where: { id: b.movieId as string }, select: { isPublished: true } });
-      if (currentMovie?.isPublished) {
+      if (movie.isPublished) {
         await tx.movie.update({
           where: { id: b.movieId as string },
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
-      return saved;
+      return { kind: "SAVED" as const, license: saved };
     }, { isolationLevel: "Serializable" });
-    return NextResponse.json({ message: "Licence details saved as PENDING. Any previously published movie was unpublished and will require fresh approval and manual publishing.", license }, { status: 201 });
+    if (licenseResult.kind === "NOT_FOUND") {
+      return NextResponse.json({ error: "Movie not found." }, { status: 404 });
+    }
+    return NextResponse.json({ message: "Licence details saved as PENDING. Any previously published movie was unpublished and will require fresh approval and manual publishing.", license: licenseResult.license }, { status: 201 });
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during this update. Reload the record and try again." }, { status: 409 });
