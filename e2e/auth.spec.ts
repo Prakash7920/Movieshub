@@ -48,7 +48,7 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test("registration, login, logout and protected routes work on mobile", async ({ page }) => {
+test("registration, login, logout and protected routes work on mobile", async ({ page, browser }) => {
   const email = `register-${Date.now()}@movieshub-e2e.test`;
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/auth/register");
@@ -77,11 +77,18 @@ test("registration, login, logout and protected routes work on mobile", async ({
 
   await expect(page).toHaveURL(/dashboard/);
   await expect(page.locator('header button[aria-label="Logout"]')).toBeVisible();
+  const browserContext = page.context().browser();
+  if (!browserContext) throw new Error("Browser context unavailable for concurrent-session test.");
+  const concurrentContext = await browserContext.newContext({ storageState: await page.context().storageState() });
+  const concurrentPage = await concurrentContext.newPage();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
 
   await page.locator('header button[aria-label="Logout"]').click();
   await expect(page).toHaveURL("/");
+  const revokedSession = await concurrentPage.request.get("/api/subscription/status");
+  expect(revokedSession.status()).toBe(401);
+  await concurrentContext.close();
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/auth\/login/);
 });
@@ -172,6 +179,8 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   });
   expect(response.status()).toBe(201);
   const payload = await response.json();
+  expect(payload.user).not.toHaveProperty("passwordHash");
+  expect(payload.user).not.toHaveProperty("passwordResetTokens");
   const created = await prisma.user.findUnique({ where: { id: payload.user.id }, select: { role: true } });
   expect(created?.role).toBe("USER");
 
@@ -193,6 +202,9 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
   await expect(page).toHaveURL(/dashboard/);
   const adminAccess = await page.request.get("/api/admin/movies");
   expect(adminAccess.status()).toBe(200);
+  const adminBody = await adminAccess.json();
+  expect(JSON.stringify(adminBody)).not.toContain("passwordHash");
+  expect(JSON.stringify(adminBody)).not.toContain("tokenHash");
 });
 
 test("territory restrictions fail closed and exclude non-permitted movies", async ({ page }) => {
@@ -229,15 +241,50 @@ test("territory restrictions fail closed and exclude non-permitted movies", asyn
     select: { id: true },
   });
 
+  const allowedSlug = `territory-allowed-${Date.now()}`;
+  const allowedMovie = await prisma.movie.create({
+    data: {
+      titleEn: "E2E Territory Allowed",
+      titleTa: "E2E Territory Allowed",
+      slug: allowedSlug,
+      descriptionEn: "Test metadata",
+      descriptionTa: "Test metadata",
+      posterUrl: "https://example.com/poster.jpg",
+      backdropUrl: "https://example.com/backdrop.jpg",
+      language: "en",
+      audioLanguages: ["en"],
+      subtitleLanguages: ["en"],
+      releaseYear: 2026,
+      runtimeMinutes: 90,
+      ageRating: "U",
+      isPublished: true,
+      contentStatus: ContentStatus.PUBLISHED,
+      allowedCountries: ["IN"],
+      license: {
+        create: {
+          owner: "Test rights holder",
+          status: LicenseStatus.ACTIVE,
+          startDate: new Date(Date.now() - 60_000),
+          expiryDate: new Date(Date.now() + 60_000),
+          allowedCountries: ["IN"],
+        },
+      },
+    },
+    select: { id: true },
+  });
+
   const response = await page.request.get("/api/movies", { headers: { "x-vercel-ip-country": "IN" } });
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(body.movies.some((item: { slug: string }) => item.slug === slug)).toBe(false);
+  expect(body.movies.some((item: { slug: string }) => item.slug === allowedSlug)).toBe(true);
 
-  const failClosed = await page.request.get("/api/movies", { headers: { "x-vercel-ip-country": "India" } });
-  expect(failClosed.status()).toBe(503);
+  const missingCountry = await page.request.get("/api/movies");
+  expect(missingCountry.status()).toBe(503);
+  const invalidCountry = await page.request.get("/api/movies", { headers: { "x-vercel-ip-country": "India" } });
+  expect(invalidCountry.status()).toBe(503);
 
-  await prisma.movie.delete({ where: { id: movie.id } });
+  await prisma.movie.deleteMany({ where: { id: { in: [movie.id, allowedMovie.id] } } });
 });
 
 test("watchlist ownership is derived from the authenticated user, not request fields", async ({ page }) => {
@@ -339,4 +386,18 @@ test("password change invalidates the current session and permits the new passwo
   await page.locator('input[type="password"]').fill("MoviesHub-Changed-Password-2026!");
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/dashboard/);
+});
+
+test("verification resend uses the same response for known and unknown addresses", async ({ page }) => {
+  const knownEmail = `resend-known-${Date.now()}@movieshub-e2e.test`;
+  await createUser(knownEmail, Role.USER, false);
+  const headers = { origin: "http://127.0.0.1:3000", "content-type": "application/json" };
+  const known = await page.request.post("/api/auth/resend-verification", { headers, data: { email: knownEmail } });
+  const unknown = await page.request.post("/api/auth/resend-verification", {
+    headers,
+    data: { email: `resend-unknown-${Date.now()}@movieshub-e2e.test` },
+  });
+  expect(known.status()).toBe(202);
+  expect(unknown.status()).toBe(202);
+  expect(await known.json()).toEqual(await unknown.json());
 });
