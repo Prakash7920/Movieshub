@@ -31,7 +31,8 @@ For local schema development, use `npm run prisma:migrate` and review/commit the
 5. Set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to the final HTTPS Vercel domain.
 6. Configure `RESEND_API_KEY` and a verified-domain `RESEND_FROM_EMAIL` before relying on password reset or verification email delivery.
 7. Set `REQUIRE_EMAIL_VERIFICATION=false` initially. Enable it only after existing accounts have a reviewed verification/backfill plan.
-8. Add the variables to Preview and Production environments as appropriate. Validate migrations on staging and confirm a current backup before production deployment.
+8. Set `CRON_SECRET` to a random value of at least 32 characters for the scheduled expired-rate-limit cleanup job.
+9. Add the variables to Preview and Production environments as appropriate. Keep Preview connected to an isolated staging database. Validate migrations on staging and confirm a current backup before production deployment.
 
 Do not commit real environment values or paste secrets into chat.
 
@@ -51,13 +52,14 @@ Do not commit real environment values or paste secrets into chat.
 - `npm run build`
 - `npm run typecheck`
 - `npm run test`
-- `npm run test:integration` (requires a migrated test database)
+- `npm run test:integration` (requires a migrated isolated test database)
+- `npm run test:e2e` (requires Chromium and an isolated `movieshub_test` database)
 - `npm run prisma:generate`
 - `npm run prisma:migrate`
 
 ## Database operations and backups
 
-The Vercel build command runs `prisma migrate deploy`. Validate each migration against staging and confirm a recent encrypted Neon backup/PITR recovery point before production deployment. Do not use `prisma migrate reset` or destructive schema commands against production. The application repository cannot verify Neon backup retention or execute a production restore; those remain operator checks.
+The Vercel build command runs `prisma migrate deploy`. Validate each migration against staging and confirm a recent encrypted Neon backup/PITR recovery point before production deployment. Do not use `prisma migrate reset` or destructive schema commands against production. The scheduled Vercel cron at 04:00 UTC removes only rate-limit buckets expired for more than 24 hours; configure `CRON_SECRET` in Vercel for authorization. The application repository cannot verify Neon backup retention or execute a production restore; those remain operator checks.
 
 ## Legal and security notes
 
