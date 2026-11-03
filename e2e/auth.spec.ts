@@ -93,6 +93,9 @@ test("registration, login, logout and protected routes work on mobile", async ({
   if (!browserContext) throw new Error("Browser context unavailable for concurrent-session test.");
   const concurrentContext = await browserContext.newContext({ baseURL: "http://127.0.0.1:3000", storageState: await page.context().storageState() });
   const concurrentPage = await concurrentContext.newPage();
+  await page.goto("/");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+  await page.goto("/dashboard");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
 
