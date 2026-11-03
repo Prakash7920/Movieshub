@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { registerSchema } from "@/lib/validations/auth";
@@ -11,6 +12,12 @@ import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!hasValidJsonContentType(request)) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
   try {
     const body: unknown = await request.json();
     const parsed = registerSchema.safeParse(body);
