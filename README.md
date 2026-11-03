@@ -41,9 +41,10 @@ Do not commit real environment values or paste secrets into chat.
 - Registration uses server-side Zod validation, bcrypt password hashing, and database-backed throttling.
 - Login uses NextAuth Credentials with JWT sessions, secure production cookies, account-state checks, and shared throttling.
 - Password reset uses cryptographically random tokens, SHA-256 token hashes, 30-minute expiry, single-use claims, and password-change session invalidation.
+- Logout records the JWT identifier for server-side revocation; password changes/resets invalidate all older sessions through `passwordChangedAt`.
 - Email verification uses hashed, expiring, single-use tokens. Verification is optional for sign-in until `REQUIRE_EMAIL_VERIFICATION=true` is explicitly enabled after an account migration/communication plan.
 - Password reset and verification email delivery require a Resend API key and a sender address verified with Resend. The Resend test sender is not a production sender.
-- PostgreSQL-backed rate limits are shared across application instances; HMAC-derived identifiers are stored instead of raw email/IP values.
+- PostgreSQL-backed rate limits are shared across application instances; HMAC-derived identifiers are stored instead of raw email/IP values. A daily authenticated cron removes expired rate-limit buckets and revoked JWT records.
 - A working database and the environment variables above are required; GitHub Pages static hosting cannot run these server APIs.
 
 ## Scripts
