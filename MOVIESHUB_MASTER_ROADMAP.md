@@ -34,6 +34,6 @@ The detailed requirement-by-requirement implementation, test evidence, changed f
 - Configure production error monitoring and alerts with sensitive-field redaction.
 - Run staging performance/load and query-plan checks.
 - Complete production configuration review and staging migration validation.
-- Resolve the Vercel build-rate limit so a Preview deployment can be validated.
+- Verify the Vercel-reported Ready Preview deployment with live browser flows; the combined Vercel status still contains an earlier build-rate-limit failure.
 
 **Phase 3 remains PENDING. Do not begin Phase 4 until the outstanding items are resolved and the requirement ledger is updated with evidence.**
