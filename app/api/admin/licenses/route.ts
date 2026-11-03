@@ -49,13 +49,23 @@ export async function POST(request: Request) {
     }
     const movie = await prisma.movie.findUnique({ where: { id: b.movieId }, select: { id: true } });
     if (!movie) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
-    const license = await prisma.license.upsert({
-      where: { movieId: b.movieId },
-      create: { movieId: b.movieId, owner: b.owner.trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
-      update: { owner: b.owner.trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
-      select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true },
+    const license = await prisma.$transaction(async tx => {
+      const saved = await tx.license.upsert({
+        where: { movieId: b.movieId as string },
+        create: { movieId: b.movieId as string, owner: (b.owner as string).trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
+        update: { owner: (b.owner as string).trim().slice(0, 200), status: LicenseStatus.PENDING, startDate, expiryDate, allowedCountries, downloadAllowed: false, notes: typeof b.notes === "string" ? b.notes.trim().slice(0, 3000) : null },
+        select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true },
+      });
+      const currentMovie = await tx.movie.findUnique({ where: { id: b.movieId as string }, select: { isPublished: true } });
+      if (currentMovie?.isPublished) {
+        await tx.movie.update({
+          where: { id: b.movieId as string },
+          data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
+        });
+      }
+      return saved;
     });
-    return NextResponse.json({ message: "Licence details saved for review. Status remains PENDING; this does not grant publishing permission.", license }, { status: 201 });
+    return NextResponse.json({ message: "Licence details saved as PENDING. Any previously published movie was unpublished and will require fresh approval and manual publishing.", license }, { status: 201 });
   } catch (error) {
     console.error("Admin licence save failed:", error);
     return NextResponse.json({ error: "Unable to save licence details." }, { status: 500 });
