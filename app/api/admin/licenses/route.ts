@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during this update. Reload the record and try again." }, { status: 409 });
     }
-    console.error("Admin licence save failed:", error);
+    logSafeError("Admin licence save failed", error);
     return NextResponse.json({ error: "Unable to save licence details." }, { status: 500 });
   }
 }
@@ -153,7 +154,7 @@ export async function PATCH(request: Request) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during review. Reload the record and try again." }, { status: 409 });
     }
-    console.error("Admin licence review failed:", error);
+    logSafeError("Admin licence review failed", error);
     return NextResponse.json({ error: "Unable to review licence." }, { status: 500 });
   }
 }
