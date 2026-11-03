@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
+import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,7 @@ async function getUserId() {
   return user?.id ?? null;
 }
 
-function currentLicenceFilter() {
+function currentLicenceFilter(country: string) {
   const now = new Date();
   return {
     isPublished: true,
@@ -21,19 +22,28 @@ function currentLicenceFilter() {
         status: "ACTIVE" as const,
         startDate: { lte: now },
         expiryDate: { gt: now },
-        allowedCountries: { isEmpty: false },
+        allowedCountries: { has: country },
       },
     },
   };
 }
 
-export async function GET() {
+function countryUnavailable() {
+  return NextResponse.json(
+    { error: "Your viewing country could not be verified. Please try again from the live MoviesHub website." },
+    { status: 503, headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+
+export async function GET(request: Request) {
   try {
+    const country = getVercelViewerCountry(request.headers);
+    if (!country) return countryUnavailable();
     const userId = await getUserId();
-    if (!userId) return NextResponse.json({ error: "Please sign in to view your watchlist." }, { status: 401 });
+    if (!userId) return NextResponse.json({ error: "Please sign in to view your watchlist." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
 
     const items = await prisma.watchlist.findMany({
-      where: { userId, movie: currentLicenceFilter() },
+      where: { userId, movie: currentLicenceFilter(country) },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -52,15 +62,17 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Watchlist fetch failed:", error);
-    return NextResponse.json({ error: "Unable to load your watchlist." }, { status: 500 });
+    return NextResponse.json({ error: "Unable to load your watchlist." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const country = getVercelViewerCountry(request.headers);
+    if (!country) return countryUnavailable();
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to save movies." }, { status: 401 });
 
@@ -69,10 +81,10 @@ export async function POST(request: Request) {
     if (!slug || slug.length > 120) return NextResponse.json({ error: "A valid movie slug is required." }, { status: 400 });
 
     const movie = await prisma.movie.findFirst({
-      where: { slug, ...currentLicenceFilter() },
+      where: { slug, ...currentLicenceFilter(country) },
       select: { id: true },
     });
-    if (!movie) return NextResponse.json({ error: "Movie not found in the currently licensed catalogue." }, { status: 404 });
+    if (!movie) return NextResponse.json({ error: "Movie not found in the currently licensed catalogue for your territory." }, { status: 404 });
 
     const item = await prisma.watchlist.upsert({
       where: { userId_movieId: { userId, movieId: movie.id } },
@@ -81,7 +93,7 @@ export async function POST(request: Request) {
       select: { id: true, createdAt: true },
     });
 
-    return NextResponse.json({ message: "Movie saved to your watchlist.", item }, { status: 201 });
+    return NextResponse.json({ message: "Movie saved to your watchlist.", item }, { status: 201, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Watchlist save failed:", error);
     return NextResponse.json({ error: "Unable to save this movie right now." }, { status: 500 });
@@ -97,11 +109,8 @@ export async function DELETE(request: Request) {
     const slug = typeof body === "object" && body !== null && "slug" in body && typeof body.slug === "string" ? body.slug.trim() : "";
     if (!slug || slug.length > 120) return NextResponse.json({ error: "A valid movie slug is required." }, { status: 400 });
 
-    await prisma.watchlist.deleteMany({
-      where: { userId, movie: { slug } },
-    });
-
-    return NextResponse.json({ message: "Movie removed from your watchlist." });
+    await prisma.watchlist.deleteMany({ where: { userId, movie: { slug } } });
+    return NextResponse.json({ message: "Movie removed from your watchlist." }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Watchlist removal failed:", error);
     return NextResponse.json({ error: "Unable to remove this movie right now." }, { status: 500 });
