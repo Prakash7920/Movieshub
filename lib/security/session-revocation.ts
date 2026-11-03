@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 
 export function getSessionRevocationId(token: Record<string, unknown>): string | null {
+  const sid = typeof token.sid === "string" ? token.sid : null;
+  if (sid) return `sid:${sid}`;
+
   const jti = typeof token.jti === "string" ? token.jti : null;
   if (jti) return `jti:${jti}`;
 
