@@ -356,6 +356,7 @@ test("watchlist ownership is derived from the authenticated user, not request fi
 
   const privateHeaders = {
     origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/",
     "content-type": "application/json",
     "x-vercel-ip-country": "IN",
   };
