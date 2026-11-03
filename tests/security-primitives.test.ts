@@ -55,7 +55,7 @@ test("state-changing API requests require a same-origin source", () => {
 test("JSON content type and declared body size are enforced", () => {
   const valid = new Request("https://movieshub.example/api", {
     method: "POST",
-    headers: { "content-type": "application/json", "content-length": "2" },
+    headers: { "content-type": "application/json" },
     body: "{}",
   });
   const wrongType = new Request("https://movieshub.example/api", {
@@ -65,8 +65,8 @@ test("JSON content type and declared body size are enforced", () => {
   });
   const oversized = new Request("https://movieshub.example/api", {
     method: "POST",
-    headers: { "content-type": "application/json", "content-length": "999999" },
-    body: "{}",
+    headers: { "content-type": "application/json" },
+    body: "x".repeat(17 * 1024),
   });
 
   assert.equal(hasValidJsonContentType(valid), true);
