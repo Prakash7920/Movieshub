@@ -6,9 +6,16 @@ import { useSearchParams } from "next/navigation";
 
 export function VerifyEmailForm() {
   const params = useSearchParams();
-  const token = params.get("token") || "";
+  const [token, setToken] = useState("");
   const [message, setMessage] = useState("Checking your verification link...");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fragmentToken = typeof window !== "undefined"
+      ? new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token")
+      : null;
+    setToken(fragmentToken || params.get("token") || "");
+  }, [params]);
 
   useEffect(() => {
     let active = true;
