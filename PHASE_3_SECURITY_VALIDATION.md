@@ -69,6 +69,8 @@ Status meanings are used exactly as requested: **PASS**, **PENDING**, or **BLOCK
 
 ## 3. CI evidence
 
+Latest verified GitHub Actions run: [run #190 — success](https://github.com/Prakash7920/movieshub/actions/runs/41693708004), commit `4ef623c9968c2ccf69eae1b1d83036810ccbf21d` (2026-11-03). A second adjacent validation run also completed successfully.
+
 The latest GitHub Actions validation runs completed successfully:
 
 - Prisma Client generation: PASS.
