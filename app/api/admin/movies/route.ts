@@ -19,14 +19,14 @@ function isSafeImageUrl(value: string): boolean {
 }
 
 async function requireAdmin() {
-  let session: Awaited<ReturnType<typeof getServerSession>> | null = null;
+  let sessionUser: { id?: string } | undefined;
   try {
-    session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions);
+    sessionUser = session?.user as { id?: string } | undefined;
   } catch (error) {
     logSafeError("Admin session lookup failed", error);
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
-  const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
   let user: { role: string; isBanned: boolean } | null;
   try {
