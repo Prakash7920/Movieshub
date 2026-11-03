@@ -87,10 +87,6 @@ export async function getRecommendationAssistantData(
       where: { email: safeEmail },
       include: {
         profiles: true,
-        subscriptions: {
-          orderBy: { startDate: "desc" },
-          take: 1,
-        },
         watchHistory: {
           where: { movie: currentLicenceFilter },
           orderBy: { lastWatchedAt: "desc" },
@@ -111,9 +107,6 @@ export async function getRecommendationAssistantData(
     if (!user) return buildFallbackResult("No matching user profile was found for the recommendation engine.");
 
     const preferredLanguage = (user.profiles[0]?.languagePreference === "en" ? "en" : "ta") as "en" | "ta";
-    // Do not infer a paid recommendation preference from a subscription row alone.
-    // Active payment and date checks remain centralized in the entitlement service.
-    const activeSubscription = "FREE";
     const watchedHistory = user.watchHistory ?? [];
 
     const genreCounts = new Map<string, number>();
@@ -148,16 +141,12 @@ export async function getRecommendationAssistantData(
         const genreNames = movie.genres.map((entry) => entry.genre.name);
         const matchedGenres = genreNames.filter((genreName) => genreCounts.has(genreName));
         const languageBonus = movie.language === preferredLanguage ? 10 : 0;
-        const premiumBias = activeSubscription === "PREMIUM" && movie.movieType === "PREMIUM" ? 8 : 0;
-        const freeBias = activeSubscription !== "PREMIUM" && movie.movieType === "FREE" ? 6 : 0;
         const genreBoost = matchedGenres.length * 12;
         const popularityBoost = Math.min(movie.watchCount / 10000, 12);
         const score =
           movie.rating * 10 +
           genreBoost +
           languageBonus +
-          premiumBias +
-          freeBias +
           popularityBoost +
           (movie.isFeatured ? 5 : 0);
 
