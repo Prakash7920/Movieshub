@@ -52,7 +52,7 @@ test("state-changing API requests require a same-origin source", () => {
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
 
-test("JSON content type and declared body size are enforced", () => {
+test("JSON content type and declared body size are enforced", async () => {
   const valid = new Request("https://movieshub.example/api", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -69,9 +69,9 @@ test("JSON content type and declared body size are enforced", () => {
     body: "x".repeat(17 * 1024),
   });
 
-  assert.equal(hasValidJsonContentType(valid), true);
-  assert.equal(hasValidJsonContentType(wrongType), false);
-  assert.equal(hasValidJsonContentType(oversized), false);
+  assert.equal(await hasValidJsonContentType(valid), true);
+  assert.equal(await hasValidJsonContentType(wrongType), false);
+  assert.equal(await hasValidJsonContentType(oversized), false);
 });
 
 test("territory resolver normalizes valid proxy country codes and fails closed", () => {
