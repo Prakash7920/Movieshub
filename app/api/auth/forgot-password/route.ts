@@ -63,8 +63,8 @@ export async function POST(request: Request) {
     const resetUrl = `${appUrl}/auth/reset-password#token=${oneTimeToken.token}`;
     const delivery = await sendTransactionalEmail({
       to: user.email,
-      subject: "Reset your MoviesHub password",
-      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your MoviesHub password</h2><p>We received a request to reset your account password.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p></div>`,
+      subject: "Reset your NexaFilm password",
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Reset your NexaFilm password</h2><p>We received a request to reset your account password.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>This link expires in 30 minutes and can be used only once. If you did not request this, you can ignore this email.</p><p style="color:#666;font-size:12px">NexaFilm · One Platform. Every Language. Endless Stories.</p></div>`,
     });
 
     if (!delivery.sent) {
