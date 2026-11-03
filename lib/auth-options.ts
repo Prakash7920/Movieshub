@@ -6,7 +6,7 @@ import { consumeRateLimit } from "@/lib/security/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  useSecureCookies: process.env.NODE_ENV === "production",
+  useSecureCookies: process.env.NEXTAUTH_URL?.startsWith("https://") ?? process.env.NODE_ENV === "production",
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/auth/login" },
   providers: [
@@ -19,7 +19,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, req) {
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
-        if (!email || !password) return null;
+        if (!email || email.length > 254 || !password || password.length > 128) return null;
 
         try {
           const emailLimit = await consumeRateLimit("login-email", email, 10, 15 * 60);
