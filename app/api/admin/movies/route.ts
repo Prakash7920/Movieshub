@@ -159,7 +159,7 @@ export async function PATCH(request: Request) {
   if (!(await hasValidJsonContentType(request, 32 * 1024))) {
     return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   }
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
@@ -207,7 +207,7 @@ export async function PUT(request: Request) {
   if (!(await hasValidJsonContentType(request, 32 * 1024))) {
     return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   }
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
@@ -262,7 +262,7 @@ export async function DELETE(request: Request) {
   if (!(await hasValidJsonContentType(request, 32 * 1024))) {
     return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   }
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
