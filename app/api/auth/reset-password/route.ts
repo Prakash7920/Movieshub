@@ -41,26 +41,26 @@ export async function POST(request: Request) {
     }
 
     const tokenHash = hashOneTimeToken(parsed.data.token);
-    const now = new Date();
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      select: { id: true, userId: true, expiresAt: true, usedAt: true },
+    });
+    if (!resetToken || resetToken.usedAt || resetToken.expiresAt <= new Date()) {
+      return NextResponse.json({ error: "The reset link is invalid or expired." }, { status: 400 });
+    }
+
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-
     const result = await prisma.$transaction(async (tx) => {
-      const resetToken = await tx.passwordResetToken.findUnique({
-        where: { tokenHash },
-        select: { id: true, userId: true, expiresAt: true, usedAt: true },
-      });
-
-      if (!resetToken || resetToken.usedAt || resetToken.expiresAt <= now) return false;
-
+      const claimedAt = new Date();
       const claimed = await tx.passwordResetToken.updateMany({
-        where: { id: resetToken.id, usedAt: null, expiresAt: { gt: now } },
-        data: { usedAt: now },
+        where: { id: resetToken.id, userId: resetToken.userId, usedAt: null, expiresAt: { gt: claimedAt } },
+        data: { usedAt: claimedAt },
       });
       if (claimed.count !== 1) return false;
 
       await tx.user.update({
         where: { id: resetToken.userId },
-        data: { passwordHash, passwordChangedAt: now },
+        data: { passwordHash, passwordChangedAt: claimedAt },
       });
       await tx.passwordResetToken.deleteMany({
         where: { userId: resetToken.userId, id: { not: resetToken.id } },
