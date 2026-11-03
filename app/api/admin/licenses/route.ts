@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { logSafeError } from "@/lib/security/safe-log";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
@@ -14,6 +16,17 @@ async function requireAdmin() {
   const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
+  }
+  try {
+    const limit = await consumeRateLimit("admin-api-user", sessionUser.id, 120, 60);
+    if (!limit.allowed) {
+      return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" },
+      }) };
+    }
+  } catch {
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
   return { userId: sessionUser.id };
 }
