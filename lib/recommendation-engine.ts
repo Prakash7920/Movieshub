@@ -72,6 +72,20 @@ export async function getRecommendationAssistantData(
   }
 
   try {
+    const now = new Date();
+    const currentLicenceFilter = {
+      isPublished: true,
+      contentStatus: "PUBLISHED" as const,
+      license: {
+        is: {
+          status: "ACTIVE" as const,
+          startDate: { lte: now },
+          expiryDate: { gt: now },
+          allowedCountries: { isEmpty: false },
+        },
+      },
+    };
+
     const user = await prisma.user.findUnique({
       where: { email: safeEmail },
       include: {
@@ -81,6 +95,7 @@ export async function getRecommendationAssistantData(
           take: 1,
         },
         watchHistory: {
+          where: { movie: currentLicenceFilter },
           orderBy: { lastWatchedAt: "desc" },
           take: 10,
           include: {
@@ -120,7 +135,7 @@ export async function getRecommendationAssistantData(
     const watchedIds = new Set(watchedHistory.map((item) => item.movieId));
 
     const candidateMovies = await prisma.movie.findMany({
-      where: { isPublished: true },
+      where: currentLicenceFilter,
       include: {
         genres: {
           include: { genre: true },
