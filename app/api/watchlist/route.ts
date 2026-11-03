@@ -49,7 +49,7 @@ function currentLicenceFilter(country: string) {
 
 function countryUnavailable() {
   return NextResponse.json(
-    { error: "Your viewing country could not be verified. Please try again from the live MoviesHub website." },
+    { error: "Your viewing country could not be verified. Please try again from the live NexaFilm website." },
     { status: 503, headers: { "Cache-Control": "private, no-store" } },
   );
 }
