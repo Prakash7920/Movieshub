@@ -6,6 +6,15 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+function isSafeImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as { id?: string } | undefined;
@@ -44,6 +53,9 @@ export async function POST(request: Request) {
     const b = body as Record<string, unknown>;
     const fields = ["titleEn","titleTa","slug","descriptionEn","descriptionTa","posterUrl","backdropUrl","language","ageRating"];
     for (const field of fields) if (typeof b[field] !== "string" || !(b[field] as string).trim()) return NextResponse.json({ error: field + " is required." }, { status: 400 });
+    if (!isSafeImageUrl((b.posterUrl as string).trim()) || !isSafeImageUrl((b.backdropUrl as string).trim())) {
+      return NextResponse.json({ error: "Poster and backdrop must use valid HTTPS image URLs." }, { status: 400 });
+    }
     const slug = (b.slug as string).trim().toLowerCase();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return NextResponse.json({ error: "Slug must use lowercase letters, numbers and hyphens." }, { status: 400 });
     const releaseYear = Number(b.releaseYear), runtimeMinutes = Number(b.runtimeMinutes), rating = Number(b.rating ?? 0);
@@ -135,6 +147,11 @@ export async function PUT(request: Request) {
     }
     const required = ["titleEn","titleTa","slug","descriptionEn","descriptionTa","language","ageRating","genre"];
     for (const field of required) if (typeof b[field] !== "string" || !(b[field] as string).trim()) return NextResponse.json({ error: field + " is required." }, { status: 400 });
+    const posterUrl = typeof b.posterUrl === "string" ? b.posterUrl.trim() : "";
+    const backdropUrl = typeof b.backdropUrl === "string" ? b.backdropUrl.trim() : "";
+    if ((posterUrl && !isSafeImageUrl(posterUrl)) || (backdropUrl && !isSafeImageUrl(backdropUrl))) {
+      return NextResponse.json({ error: "Poster and backdrop must use valid HTTPS image URLs." }, { status: 400 });
+    }
     const slug = (b.slug as string).trim().toLowerCase();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 120) return NextResponse.json({ error: "Slug must use lowercase letters, numbers and hyphens." }, { status: 400 });
     const releaseYear = Number(b.releaseYear), runtimeMinutes = Number(b.runtimeMinutes), rating = Number(b.rating ?? 0);
@@ -149,8 +166,8 @@ export async function PUT(request: Request) {
       await tx.movie.update({ where: { id: b.id as string }, data: {
         titleEn: (b.titleEn as string).trim().slice(0,160), titleTa: (b.titleTa as string).trim().slice(0,160), slug,
         descriptionEn: (b.descriptionEn as string).trim().slice(0,5000), descriptionTa: (b.descriptionTa as string).trim().slice(0,5000),
-        posterUrl: typeof b.posterUrl === "string" ? b.posterUrl.trim().slice(0,2000) : "",
-        backdropUrl: typeof b.backdropUrl === "string" ? b.backdropUrl.trim().slice(0,2000) : "",
+        posterUrl: posterUrl.slice(0,2000),
+        backdropUrl: backdropUrl.slice(0,2000),
         language, releaseYear, runtimeMinutes, ageRating: (b.ageRating as string).trim().slice(0,20), rating,
         genres: { deleteMany: {}, create: { genre: { connectOrCreate: { where: { slug: genreSlug }, create: { name: genreName, slug: genreSlug } } } } },
       } });
