@@ -8,16 +8,59 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role { USER ADMIN SUPERADMIN }
-enum AuthProvider { CREDENTIALS GOOGLE GITHUB }
-enum PlanType { FREE PREMIUM }
-enum BillingCycle { MONTHLY YEARLY }
-enum SubscriptionStatus { ACTIVE CANCELLED PAST_DUE TRIALING EXPIRED }
-enum PaymentStatus { PENDING PAID FAILED REFUNDED CANCELLED }
-enum MovieType { FREE PREMIUM }
-enum ContentStatus { DRAFT PUBLISHED UNPUBLISHED ARCHIVED }
-enum AdType { BANNER VIDEO POPUP }
-enum LicenseStatus { ACTIVE EXPIRED PENDING REJECTED }
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+enum AuthProvider {
+  CREDENTIALS
+  GOOGLE
+  GITHUB
+}
+enum PlanType {
+  FREE
+  PREMIUM
+}
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+  EXPIRED
+}
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+enum MovieType {
+  FREE
+  PREMIUM
+}
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+  ARCHIVED
+}
+enum AdType {
+  BANNER
+  VIDEO
+  POPUP
+}
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  PENDING
+  REJECTED
+}
 
 model User {
   id               String          @id @default(cuid())
