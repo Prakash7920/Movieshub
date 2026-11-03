@@ -73,6 +73,7 @@ export function Navbar() {
           {isLoggedIn ? (
             <button
               type="button"
+              aria-label={isSigningOut ? "Logging out" : "Logout"}
               onClick={handleSignOut}
               disabled={isSigningOut}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 sm:px-4 py-2 text-sm font-medium text-white transition hover:border-red-500/50 hover:text-red-200 disabled:opacity-60"
