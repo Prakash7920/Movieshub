@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const userId = typeof token?.sub === "string" ? token.sub : null;
     const tokenId = token ? getSessionRevocationId(token) : null;
     const hasStableSessionId = typeof token?.sid === "string";
-    const expiresAt = typeof token?.exp === "number" ? new Date(token.exp * 1000) : null;
+    const expiresAt = typeof token?.exp === "number" ? new Date((token?.exp as number) * 1000) : null;
     if (!userId || !tokenId || !expiresAt || expiresAt <= new Date()) {
       return NextResponse.json({ error: "No active session." }, { status: 401 });
     }
