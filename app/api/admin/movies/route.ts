@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logSafeError } from "@/lib/security/safe-log";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getServerSession } from "next-auth/next";
 import { Prisma, ContentStatus, MovieType } from "@prisma/client";
@@ -18,7 +19,21 @@ function isSafeImageUrl(value: string): boolean {
   }
 }
 
-async function requireAdmin() {
+async function requireAdmin(request: Request) {
+  const ip = getClientIp(request.headers);
+  if (ip) {
+    try {
+      const ipLimit = await consumeRateLimit("admin-api-ip", ip, 60, 60);
+      if (!ipLimit.allowed) {
+        return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds), "Cache-Control": "no-store" },
+        }) };
+      }
+    } catch {
+      return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+    }
+  }
   let sessionUser: { id?: string } | undefined;
   try {
     const session = await getServerSession(authOptions);
@@ -28,6 +43,17 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
+  try {
+    const userLimit = await consumeRateLimit("admin-api-user", sessionUser.id, 120, 60);
+    if (!userLimit.allowed) {
+      return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
+        status: 429,
+        headers: { "Retry-After": String(userLimit.retryAfterSeconds), "Cache-Control": "no-store" },
+      }) };
+    }
+  } catch {
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
   let user: { role: string; isBanned: boolean } | null;
   try {
     user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
@@ -38,22 +64,11 @@ async function requireAdmin() {
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
-  try {
-    const limit = await consumeRateLimit("admin-api-user", sessionUser.id, 120, 60);
-    if (!limit.allowed) {
-      return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
-        status: 429,
-        headers: { "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" },
-      }) };
-    }
-  } catch {
-    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
-  }
   return { userId: sessionUser.id };
 }
 
-export async function GET() {
-  const auth = await requireAdmin();
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const [movies, genres] = await Promise.all([
@@ -77,7 +92,7 @@ export async function POST(request: Request) {
   if (!(await hasValidJsonContentType(request, 32 * 1024))) {
     return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
   }
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
