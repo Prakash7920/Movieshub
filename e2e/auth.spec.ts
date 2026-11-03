@@ -51,6 +51,9 @@ test.afterAll(async () => {
 test("registration, login, logout and protected routes work on mobile", async ({ page }) => {
   const email = `register-${Date.now()}@movieshub-e2e.test`;
   await page.setViewportSize({ width: 390, height: 844 });
+  const health = await page.request.get("/api/health");
+  expect(health.status()).toBe(200);
+  expect(await health.json()).toEqual({ status: "ok", database: "ok" });
   const registerResponse = await page.goto("/auth/register");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   const securityHeaders = registerResponse?.headers() ?? {};
@@ -453,4 +456,17 @@ test("account suspension and deletion invalidate existing JWT sessions", async (
   await expect(page).toHaveURL(/dashboard/);
   await prisma.user.delete({ where: { id: deletedUser.id } });
   expect((await page.request.get("/api/subscription/status")).status()).toBe(401);
+});
+
+test("rate-limit cleanup cron requires its bearer secret", async ({ page }) => {
+  const unauthorized = await page.request.get("/api/cron/cleanup-rate-limits");
+  expect(unauthorized.status()).toBe(401);
+
+  const secret = process.env.CRON_SECRET;
+  if (!secret) throw new Error("CI must provide CRON_SECRET for cron authorization tests.");
+  const authorized = await page.request.get("/api/cron/cleanup-rate-limits", {
+    headers: { authorization: `Bearer ${secret}` },
+  });
+  expect(authorized.status()).toBe(200);
+  expect((await authorized.json()).status).toBe("ok");
 });
