@@ -19,6 +19,8 @@ export function VerifyEmailForm() {
 
   useEffect(() => {
     let active = true;
+    setError("");
+    setMessage("Checking your verification link...");
     if (!/^[a-f0-9]{64}$/.test(token)) {
       setError("This verification link is invalid. Request a new one.");
       setMessage("");
