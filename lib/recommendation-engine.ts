@@ -41,12 +41,8 @@ const emailSchema = z
   .max(254, "Email address is too long.");
 
 export function validateUserEmail(input: string | null | undefined): string | null {
-  if (!input || typeof input !== "string") {
-    return null;
-  }
-
-  const sanitized = input.trim();
-  const result = emailSchema.safeParse(sanitized);
+  if (!input || typeof input !== "string") return null;
+  const result = emailSchema.safeParse(input.trim());
   return result.success ? result.data : null;
 }
 
@@ -64,11 +60,14 @@ function buildFallbackResult(error?: string): RecommendationAssistantResult {
 
 export async function getRecommendationAssistantData(
   userEmail = "premium@movieshub.local",
+  viewerCountry?: string | null,
 ): Promise<RecommendationAssistantResult> {
   const safeEmail = validateUserEmail(userEmail);
+  const country = typeof viewerCountry === "string" ? viewerCountry.trim().toUpperCase() : "";
 
-  if (!safeEmail) {
-    return buildFallbackResult("A valid user email is required to generate recommendations.");
+  if (!safeEmail) return buildFallbackResult("A valid user email is required to generate recommendations.");
+  if (!/^[A-Z]{2}$/.test(country)) {
+    return buildFallbackResult("Viewer country could not be verified; territory-restricted recommendations are unavailable.");
   }
 
   try {
@@ -81,7 +80,7 @@ export async function getRecommendationAssistantData(
           status: "ACTIVE" as const,
           startDate: { lte: now },
           expiryDate: { gt: now },
-          allowedCountries: { isEmpty: false },
+          allowedCountries: { has: country },
         },
       },
     };
@@ -111,9 +110,7 @@ export async function getRecommendationAssistantData(
       },
     });
 
-    if (!user) {
-      return buildFallbackResult("No matching user profile was found for the recommendation engine.");
-    }
+    if (!user) return buildFallbackResult("No matching user profile was found for the recommendation engine.");
 
     const preferredLanguage = (user.profiles[0]?.languagePreference === "en" ? "en" : "ta") as "en" | "ta";
     const activeSubscription = user.subscriptions[0]?.plan ?? "FREE";
