@@ -1,6 +1,8 @@
-# MoviesHub
+# NexaFilm
 
-MoviesHub is a legal OTT-style platform prototype for Indian-language cinema. The repository contains sample metadata only. Playback remains disabled until distribution rights and secure media delivery are verified.
+NexaFilm is a legal OTT-style platform for discovering cinema across Indian languages. The repository currently retains the historical `movieshub` name; the public-facing product brand is NexaFilm. The catalogue contains sample metadata only. Playback remains disabled until distribution rights and secure media delivery are verified.
+
+**Brand line:** One Platform. Every Language. Endless Stories.
 
 ## Stack
 
@@ -33,6 +35,7 @@ For local schema development, use `npm run prisma:migrate` and review/commit the
 7. Set `REQUIRE_EMAIL_VERIFICATION=false` initially. Enable it only after existing accounts have a reviewed verification/backfill plan.
 8. Set `CRON_SECRET` to a random value of at least 32 characters for the scheduled expired-rate-limit cleanup job.
 9. Add the variables to Preview and Production environments as appropriate. Keep Preview connected to an isolated staging database. Validate migrations on staging and confirm a current backup before production deployment.
+10. Connect the purchased NexaFilm domain to Vercel only after domain ownership and DNS are confirmed. Update the public app URL variables and Resend sender-domain DNS records after the domain is active.
 
 Do not commit real environment values or paste secrets into chat.
 
@@ -64,7 +67,7 @@ The Vercel build command runs `prisma migrate deploy`. Validate each migration a
 
 ## Roadmap and validation
 
-- [MoviesHub Master Roadmap](./MOVIESHUB_MASTER_ROADMAP.md)
+- [NexaFilm Master Roadmap](./MOVIESHUB_MASTER_ROADMAP.md)
 - [Phase 3 Security Validation report](./PHASE_3_SECURITY_VALIDATION.md)
 - [Backup and restore runbook](./BACKUP_RESTORE_RUNBOOK.md)
 
