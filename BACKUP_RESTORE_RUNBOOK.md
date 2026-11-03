@@ -14,7 +14,7 @@ This runbook is for Neon PostgreSQL and the Vercel-hosted MoviesHub application.
 - Confirm encryption in transit and at rest for the selected Neon plan and connection configuration.
 - Restrict backup/restore permissions to named operators; use least-privilege database roles for the application.
 - Keep database credentials in Vercel environment variables or an approved secret manager, never in backups, source control, CI output, or chat.
-- Treat database backups as sensitive: they contain user emails, password hashes, payment references, and hashed reset/verification tokens. Protect backup access and downloads accordingly.
+- Treat database backups as sensitive: they contain user emails, password hashes, payment references, and hashed reset/verification token hashes, and revoked-session records. Protect backup access and downloads accordingly.
 - Test the restore process after material schema changes and at the operational cadence agreed by the team.
 
 ## Non-destructive restore validation
