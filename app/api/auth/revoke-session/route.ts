@@ -30,10 +30,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await prisma.revokedSessionToken.upsert({
-      where: { tokenId },
-      create: { tokenId, userId, expiresAt },
-      update: { expiresAt },
+    await prisma.$transaction(async (tx) => {
+      await tx.revokedSessionToken.upsert({
+        where: { tokenId },
+        create: { tokenId, userId, expiresAt },
+        update: { expiresAt },
+      });
+      if (typeof token.sid !== "string") {
+        // Legacy tokens have no stable session ID; invalidate all older sessions for this account.
+        await tx.user.update({ where: { id: userId }, data: { passwordChangedAt: new Date() } });
+      }
     });
 
     return NextResponse.json({ status: "revoked" }, {
