@@ -9,12 +9,20 @@ export function isSameOriginRequest(request: Request): boolean {
   }
 }
 
-export function hasValidJsonContentType(request: Request, maxBytes = 16 * 1024): boolean {
+export async function hasValidJsonContentType(request: Request, maxBytes = 16 * 1024): Promise<boolean> {
   const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
   if (contentType !== "application/json") return false;
 
   const rawLength = request.headers.get("content-length");
-  if (rawLength === null) return true;
-  const length = Number(rawLength);
-  return Number.isSafeInteger(length) && length >= 0 && length <= maxBytes;
+  if (rawLength !== null) {
+    const length = Number(rawLength);
+    if (!Number.isSafeInteger(length) || length < 0 || length > maxBytes) return false;
+  }
+
+  try {
+    const body = await request.clone().text();
+    return new TextEncoder().encode(body).byteLength <= maxBytes;
+  } catch {
+    return false;
+  }
 }
