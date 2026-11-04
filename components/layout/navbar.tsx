@@ -47,7 +47,11 @@ export function Navbar() {
       if (!response.ok && response.status !== 401) {
         throw new Error("Secure logout could not be completed.");
       }
-      await signOut({ callbackUrl: "/" });
+
+      // Do not let NextAuth resolve "/" against a stale canonical NEXTAUTH_URL.
+      // Clear the session without redirecting, then navigate on this exact host.
+      await signOut({ redirect: false });
+      window.location.assign("/");
     } catch {
       setIsSigningOut(false);
       setLogoutError("Secure logout could not be completed. Please try again.");
