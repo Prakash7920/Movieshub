@@ -3,14 +3,17 @@ export function isSameOriginRequest(request: Request): boolean {
   if (!source) return false;
 
   try {
-    // Validate against the origin serving this request. Preview deployments use
-    // unique Vercel hostnames, while NEXTAUTH_URL may point at a canonical URL.
-    // Comparing to the configured canonical URL incorrectly rejects legitimate
-    // same-origin POSTs from Preview deployments.
-    const requestOrigin = new URL(request.url).origin;
+    // Next.js may expose an internal request URL behind a proxy. The Host
+    // header identifies the authority that received the browser request, so
+    // compare the browser source with that host rather than the internal URL.
+    // This supports Vercel Preview hostnames without trusting NEXTAUTH_URL,
+    // which may intentionally point at a different canonical deployment URL.
+    const requestUrl = new URL(request.url);
+    const requestHost = request.headers.get("host") || requestUrl.host;
     const sourceUrl = new URL(source);
     return (sourceUrl.protocol === "https:" || sourceUrl.protocol === "http:") &&
-      sourceUrl.origin === requestOrigin;
+      sourceUrl.protocol === requestUrl.protocol &&
+      sourceUrl.host === requestHost;
   } catch {
     return false;
   }
