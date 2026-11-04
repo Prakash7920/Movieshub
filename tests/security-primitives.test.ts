@@ -61,12 +61,23 @@ test("state-changing API requests require a same-origin source", () => {
     method: "POST",
     headers: { origin: previewOrigin },
   });
+  // Next.js can expose an internal URL while preserving the browser-facing Host.
+  const proxiedLocalRequest = new Request("http://localhost:3000/api/auth/register", {
+    method: "POST",
+    headers: { origin: "http://127.0.0.1:3000", host: "127.0.0.1:3000" },
+  });
+  const foreignHostRequest = new Request("http://localhost:3000/api/auth/register", {
+    method: "POST",
+    headers: { origin: "http://attacker.example", host: "127.0.0.1:3000" },
+  });
   const missingOrigin = new Request(`${expectedOrigin}/api/auth/register`, { method: "POST" });
 
   assert.equal(isSameOriginRequest(sameOrigin), true);
   assert.equal(isSameOriginRequest(sameOriginReferer), true);
   assert.equal(isSameOriginRequest(previewRequest), true);
+  assert.equal(isSameOriginRequest(proxiedLocalRequest), true);
   assert.equal(isSameOriginRequest(foreignOrigin), false);
+  assert.equal(isSameOriginRequest(foreignHostRequest), false);
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
 
