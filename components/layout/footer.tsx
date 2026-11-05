@@ -1,5 +1,6 @@
-import Link from "next/link";
 "use client";
+
+import Link from "next/link";
 
 import { Globe2 } from "lucide-react";
 import { languageLabels } from "@/lib/translations";
