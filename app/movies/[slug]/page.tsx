@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 import { WatchlistToggle } from "@/components/movies/watchlist";
 import { AddHistoryPreview } from "@/components/movies/watch-history";
+import { mockMovies } from "@/lib/mock-data";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,10 +15,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
   const { slug } = await params;
   const requestHeaders = await headers();
   const country = getVercelViewerCountry(requestHeaders);
-  if (!country) notFound();
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  if (!country && !isPreview) notFound();
 
   const now = new Date();
-  const movie = await prisma.movie.findFirst({
+  const licensedMovie = country ? await prisma.movie.findFirst({
     where: {
       slug,
       isPublished: true,
@@ -48,7 +50,21 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ sl
         },
       },
     },
-  });
+  }) : null;
+  const sampleMovie = isPreview ? mockMovies.find((item) => item.slug === slug) : null;
+  const movie = licensedMovie ?? (sampleMovie ? {
+    slug: sampleMovie.slug,
+    titleEn: sampleMovie.titleEn,
+    titleTa: sampleMovie.titleTa,
+    descriptionEn: sampleMovie.descriptionEn,
+    posterUrl: sampleMovie.posterUrl,
+    audioLanguages: sampleMovie.audioLanguages,
+    subtitleLanguages: sampleMovie.subtitleLanguages,
+    releaseYear: sampleMovie.releaseYear,
+    runtimeMinutes: sampleMovie.runtimeMinutes,
+    rating: sampleMovie.rating,
+    genres: [{ genre: { name: sampleMovie.genre } }],
+  } : null);
   if (!movie) notFound();
   const genreNames = movie.genres.map((item) => item.genre.name).join(", ") || "Uncategorised";
 
