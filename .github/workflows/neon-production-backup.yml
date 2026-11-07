@@ -32,9 +32,9 @@ jobs:
           test -n "$DATABASE_URL"
           test -n "$BACKUP_ENCRYPTION_PASSPHRASE"
           mkdir -p backup
-          pg_dump --format=custom --no-owner --no-acl "$DATABASE_URL" \\
-            | openssl enc -aes-256-cbc -salt -pbkdf2 \\
-                -pass env:BACKUP_ENCRYPTION_PASSPHRASE \\
+          pg_dump --format=custom --no-owner --no-acl "$DATABASE_URL" \
+            | openssl enc -aes-256-cbc -salt -pbkdf2 \
+                -pass env:BACKUP_ENCRYPTION_PASSPHRASE \
                 -out backup/nexafilm-production.dump.enc
           test -s backup/nexafilm-production.dump.enc
 
