@@ -1,0 +1,46 @@
+name: Encrypted Neon Production Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 1 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create encrypted database dump
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_URL"
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE"
+          mkdir -p backup
+          pg_dump --format=custom --no-owner --no-acl "$DATABASE_URL" \
+            | openssl enc -aes-256-cbc -salt -pbkdf2 \
+                -pass env:BACKUP_ENCRYPTION_PASSPHRASE \
+                -out backup/nexafilm-production.dump.enc
+          test -s backup/nexafilm-production.dump.enc
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexafilm-production-backup-${{ github.run_id }}
+          path: backup/nexafilm-production.dump.enc
+          if-no-files-found: error
+          retention-days: 7
