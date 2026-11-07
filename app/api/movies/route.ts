@@ -4,6 +4,7 @@ import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
 import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
+import { mockMovies } from "@/lib/mock-data";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,35 @@ export async function GET(request: Request) {
     if (genre !== "all" && (genre.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(genre))) {
       return NextResponse.json({ error: "Invalid genre filter." }, { status: 400 });
     }
+    // Preview-only sample catalogue. These records are illustrative metadata, not licensed titles.
+    // Never enable this branch in Production and never expose playback URLs from mock data.
+    if (process.env.VERCEL_ENV === "preview") {
+      const filtered = mockMovies.filter((movie) => {
+        const matchesLanguage = language === "all" || movie.language === language;
+        const matchesGenre = genre === "all" || movie.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") === genre;
+        const needle = search.toLowerCase();
+        const matchesSearch = !needle || [movie.titleEn, movie.titleTa, movie.descriptionEn].some((value) => value.toLowerCase().includes(needle));
+        return matchesLanguage && matchesGenre && matchesSearch;
+      }).map((movie) => ({
+        id: movie.id, slug: movie.slug, titleEn: movie.titleEn, titleTa: movie.titleTa,
+        descriptionEn: movie.descriptionEn, descriptionTa: movie.descriptionTa,
+        posterUrl: movie.posterUrl, backdropUrl: movie.backdropUrl, language: movie.language,
+        audioLanguages: movie.audioLanguages, subtitleLanguages: movie.subtitleLanguages,
+        releaseYear: movie.releaseYear, runtimeMinutes: movie.runtimeMinutes,
+        ageRating: movie.ageRating, rating: movie.rating, movieType: movie.movieType,
+        isFeatured: movie.isFeatured, genre: movie.genre,
+        genres: [movie.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")],
+        demoOnly: true,
+      }));
+      const demoGenres = Array.from(new Map(mockMovies.map((movie) => {
+        const slug = movie.genre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        return [slug, { name: movie.genre, slug }];
+      })).values()).sort((a, b) => a.name.localeCompare(b.name));
+      return NextResponse.json({ movies: filtered, genres: demoGenres, catalogueMode: "PREVIEW_DEMO" }, {
+        headers: { "Cache-Control": "private, no-store", "X-NexaFilm-Catalogue-Mode": "preview-demo" },
+      });
+    }
+
     const now = new Date();
 
     const currentlyLicensed = {
