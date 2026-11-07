@@ -62,9 +62,18 @@ export async function GET(request: Request) {
     if (!userId) return NextResponse.json({ error: "Please sign in to view watch history." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
     if (await isUserThrottled(userId)) return throttledResponse();
 
-    const items = await prisma.watchHistory.findMany({
-      where: { userId, movie: currentLicenceFilter(country) },
+    const { searchParams } = new URL(request.url);
+    const pageValue = Number(searchParams.get("page") ?? "1");
+    const pageSizeValue = Number(searchParams.get("pageSize") ?? "20");
+    const page = Number.isInteger(pageValue) && pageValue > 0 ? Math.min(pageValue, 10000) : 1;
+    const pageSize = Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(pageSizeValue, 50) : 20;
+    const where = { userId, movie: currentLicenceFilter(country) };
+    const [items, totalItems] = await Promise.all([
+      prisma.watchHistory.findMany({
+      where,
       orderBy: { lastWatchedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: {
         id: true,
         progress: true,
@@ -80,8 +89,13 @@ export async function GET(request: Request) {
           },
         },
       },
-    });
-    return NextResponse.json({ items }, { headers: { "Cache-Control": "private, no-store" } });
+    }),
+      prisma.watchHistory.count({ where }),
+    ]);
+    return NextResponse.json({
+      items,
+      pagination: { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) },
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     logSafeError("Watch history fetch failed", error);
     return NextResponse.json({ error: "Unable to load watch history." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
