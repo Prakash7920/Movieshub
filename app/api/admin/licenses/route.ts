@@ -62,11 +62,24 @@ export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
+    const params = new URL(request.url).searchParams;
+    const requestedPage = Number(params.get("page") ?? "1");
+    const requestedPageSize = Number(params.get("pageSize") ?? "20");
+    const pageSize = Number.isFinite(requestedPageSize) ? Math.min(50, Math.max(1, Math.trunc(requestedPageSize))) : 20;
+    const requestedPageNumber = Number.isFinite(requestedPage) ? Math.max(1, Math.trunc(requestedPage)) : 1;
+    const totalItems = await prisma.movie.count();
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const page = totalPages === 0 ? 1 : Math.min(requestedPageNumber, totalPages);
     const movies = await prisma.movie.findMany({
-      orderBy: { titleEn: "asc" },
+      orderBy: [{ titleEn: "asc" }, { id: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
     });
-    return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+    return NextResponse.json({
+      movies,
+      pagination: { page, pageSize, totalItems, totalPages, hasPreviousPage: page > 1, hasNextPage: page < totalPages },
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     logSafeError("Admin licence list failed", error);
     return NextResponse.json({ error: "Unable to load licence records." }, { status: 503 });
