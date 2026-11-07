@@ -1,0 +1,94 @@
+name: Restore Encrypted Neon Backup (Isolated Test)
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: "Successful backup workflow run ID"
+        required: true
+        default: "42390101314"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: neon-backup-restore-validation
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Download encrypted backup artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nexafilm-production-backup-${{ inputs.backup_run_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: backup
+
+      - name: Decrypt and validate archive
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE"
+          test -s backup/nexafilm-production.dump.enc
+          openssl enc -d -aes-256-cbc -pbkdf2 \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE \
+            -in backup/nexafilm-production.dump.enc \
+            -out backup/nexafilm-production.dump
+          test -s backup/nexafilm-production.dump
+          pg_restore --list backup/nexafilm-production.dump > backup/archive-list.txt
+          test -s backup/archive-list.txt
+
+      - name: Verify isolated target database
+        env:
+          RESTORE_TEST_DATABASE_URL: ${{ secrets.RESTORE_TEST_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$RESTORE_TEST_DATABASE_URL"
+          DB_NAME="$(psql "$RESTORE_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -Atc 'SELECT current_database()')"
+          if [ "$DB_NAME" != "restore_validation" ]; then
+            echo "Refusing restore: target database name is not restore_validation."
+            exit 1
+          fi
+          echo "Target database guard: PASS (restore_validation)"
+
+      - name: Restore into isolated test database
+        env:
+          RESTORE_TEST_DATABASE_URL: ${{ secrets.RESTORE_TEST_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          pg_restore --exit-on-error --no-owner --no-acl \
+            --dbname="$RESTORE_TEST_DATABASE_URL" \
+            backup/nexafilm-production.dump
+
+      - name: Verify restored schema and row counts
+        env:
+          RESTORE_TEST_DATABASE_URL: ${{ secrets.RESTORE_TEST_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          psql "$RESTORE_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -P pager=off -c "
+            SELECT
+              (SELECT count(*) FROM information_schema.tables
+               WHERE table_schema = 'public' AND table_type = 'BASE TABLE') AS public_table_count,
+              (SELECT count(*) FROM information_schema.tables
+               WHERE table_schema = 'public' AND table_name = '_prisma_migrations') AS prisma_migrations_table_present;
+          "
+          psql "$RESTORE_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -P pager=off -c "
+            SELECT 'User' AS table_name, count(*) AS row_count FROM public.\"User\"
+            UNION ALL SELECT 'Profile', count(*) FROM public.\"Profile\"
+            UNION ALL SELECT 'Movie', count(*) FROM public.\"Movie\"
+            UNION ALL SELECT 'Genre', count(*) FROM public.\"Genre\"
+            ORDER BY table_name;
+          "
