@@ -39,7 +39,15 @@ export async function sendTransactionalEmail(
 }
 
 export function getPublicAppUrl(): string | null {
-  const raw = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+  // Preview and production deployments share project-level environment variables.
+  // Use Vercel's deployment-specific hostname for Preview so verification links
+  // never accidentally point at the production or another environment's URL.
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  const deploymentHost = process.env.VERCEL_URL;
+  const raw = isPreview && deploymentHost
+    ? `https://${deploymentHost}`
+    : process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+
   if (!raw) return process.env.NODE_ENV === "production" ? null : "http://localhost:3000";
 
   try {
