@@ -12,6 +12,19 @@ import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
+function isEmailUniqueConflict(error: Prisma.PrismaClientKnownRequestError): boolean {
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.some((field) => String(field).toLowerCase() === "email");
+  }
+  if (typeof target === "string" && target.toLowerCase().includes("email")) {
+    return true;
+  }
+
+  const constraint = error.meta?.constraint;
+  return typeof constraint === "string" && constraint.toLowerCase().includes("email");
+}
+
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
@@ -110,7 +123,11 @@ export async function POST(request: Request) {
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      isEmailUniqueConflict(error)
+    ) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
         { status: 409 },
