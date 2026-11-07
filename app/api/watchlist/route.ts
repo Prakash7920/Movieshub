@@ -62,9 +62,26 @@ export async function GET(request: Request) {
     if (!userId) return NextResponse.json({ error: "Please sign in to view your watchlist." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
     if (await isUserThrottled(userId)) return throttledResponse();
 
-    const items = await prisma.watchlist.findMany({
-      where: { userId, movie: currentLicenceFilter(country) },
+    const { searchParams } = new URL(request.url);
+    const slug = (searchParams.get("slug") ?? "").trim().slice(0, 120);
+    if (slug) {
+      const item = await prisma.watchlist.findFirst({
+        where: { userId, movie: { slug, ...currentLicenceFilter(country) } },
+        select: { id: true },
+      });
+      return NextResponse.json({ isSaved: Boolean(item) }, { headers: { "Cache-Control": "private, no-store" } });
+    }
+    const pageValue = Number(searchParams.get("page") ?? "1");
+    const pageSizeValue = Number(searchParams.get("pageSize") ?? "20");
+    const page = Number.isInteger(pageValue) && pageValue > 0 ? Math.min(pageValue, 10000) : 1;
+    const pageSize = Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(pageSizeValue, 50) : 20;
+    const where = { userId, movie: currentLicenceFilter(country) };
+    const [items, totalItems] = await Promise.all([
+      prisma.watchlist.findMany({
+      where,
       orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: {
         id: true,
         createdAt: true,
@@ -81,7 +98,9 @@ export async function GET(request: Request) {
           },
         },
       },
-    });
+    }),
+      prisma.watchlist.count({ where }),
+    ]);
 
     return NextResponse.json({
       items: items.map((item) => ({
@@ -91,6 +110,7 @@ export async function GET(request: Request) {
           genre: item.movie.genres.map((entry) => entry.genre.name).join(", ") || "Uncategorised",
         },
       })),
+      pagination: { page, pageSize, totalItems, totalPages: Math.ceil(totalItems / pageSize) },
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     logSafeError("Watchlist fetch failed", error);
