@@ -6,6 +6,9 @@ import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  // Force HTTPS-only cookies in deployed environments while keeping localhost development usable.
+  // Production URL validation separately requires HTTPS in lib/env.ts.
+  useSecureCookies: process.env.NODE_ENV === "production",
   session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   pages: { signIn: "/auth/login" },
   providers: [
