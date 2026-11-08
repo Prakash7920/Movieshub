@@ -23,9 +23,10 @@ export const authOptions: NextAuthOptions = {
         try {
           if (!(await consumeAuthRateLimit(`login-email:${email}`, 5))) return null;
 
-          const forwarded = req.headers["x-vercel-forwarded-for"] ??
-            req.headers["x-forwarded-for"] ??
-            req.headers["x-real-ip"];
+          const headers = req.headers;
+          const forwarded = headers?.["x-vercel-forwarded-for"] ??
+            headers?.["x-forwarded-for"] ??
+            headers?.["x-real-ip"];
           const clientIp = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0]?.trim();
           if (clientIp && !(await consumeAuthRateLimit(`login-ip:${clientIp}`, 30))) return null;
         } catch (error) {
