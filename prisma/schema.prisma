@@ -86,6 +86,7 @@ model User {
   reports          Report[]
   recommendations Recommendation[]
   adminUser        AdminUser?
+  adminAuditLogs   AdminAuditLog[]
   passwordResetTokens PasswordResetToken[]
 
   @@index([email])
@@ -365,4 +366,21 @@ model AuthRateLimit {
   updatedAt       DateTime @updatedAt
 
   @@index([updatedAt])
+}
+
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String?
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([action, createdAt])
 }
