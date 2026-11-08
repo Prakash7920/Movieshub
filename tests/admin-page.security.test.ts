@@ -59,9 +59,8 @@ describe("admin page privilege boundary", () => {
       expect(result).toBeTruthy();
       expect(mocks.redirect).not.toHaveBeenCalled();
     } else {
-      expect(result).toBeTruthy();
+      expect(result.type).toBe(Symbol.for("react.fragment"));
       expect(mocks.redirect).not.toHaveBeenCalled();
-      expect(result.props.children.props.children[0].props.children).toBe("Admin access required");
     }
   });
 
@@ -70,7 +69,7 @@ describe("admin page privilege boundary", () => {
 
     const result = await AdminPage();
 
-    expect(result.props.children.props.children[0].props.children).toBe("Admin access required");
+    expect(result.props.children[0].props.children).toBe("Admin access required");
   });
 
   it("does not trust a forged role stored in the client session", async () => {
