@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as React from "react";
+
+vi.stubGlobal("React", React);
 
 const mocks = vi.hoisted(() => ({
   getServerSession: vi.fn(),
