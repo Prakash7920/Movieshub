@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginRequest } from "@/lib/security/origin-check";
 import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
@@ -28,6 +29,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originRejection = rejectCrossOriginRequest(request);
+  if (originRejection) return originRejection;
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
@@ -82,6 +85,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const originRejection = rejectCrossOriginRequest(request);
+  if (originRejection) return originRejection;
   const auth = await requireAdmin();
   if ("error" in auth) return auth.error;
   try {
