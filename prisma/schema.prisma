@@ -356,3 +356,13 @@ model Session {
   updatedAt DateTime @updatedAt
   @@index([sessionToken])
 }
+
+model AuthRateLimit {
+  key             String   @id
+  count           Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  blockedUntil    DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
+}
