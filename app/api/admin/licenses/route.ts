@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
+import { writeAdminAuditLog } from "@/lib/security/admin-audit-log";
 
 export const runtime = "nodejs";
 
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_SAVED_PENDING", targetType: "License", targetId: saved.id, metadata: { movieId: b.movieId as string, autoUnpublished: movie.isPublished } });
       return { kind: "SAVED" as const, license: saved };
     }, { isolationLevel: "Serializable" });
     if (licenseResult.kind === "NOT_FOUND") {
@@ -121,6 +123,7 @@ export async function PATCH(request: Request) {
           where: { id: movieId },
           data: { allowedCountries: current.allowedCountries, licenseOwner: current.owner, licenseStartDate: current.startDate, licenseExpiryDate: current.expiryDate, downloadPermission: false },
         });
+        await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReference: reference } });
         return { kind: "UPDATED" as const, status: result.status };
       }, { isolationLevel: "Serializable" });
       if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
@@ -150,6 +153,7 @@ export async function PATCH(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, reason: rejectionReason, autoUnpublished: Boolean(movie?.isPublished) } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
