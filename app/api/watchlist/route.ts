@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectCrossOriginRequest } from "@/lib/security/origin-check";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
@@ -79,6 +80,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const originRejection = rejectCrossOriginRequest(request);
+  if (originRejection) return originRejection;
   try {
     const country = getVercelViewerCountry(request.headers);
     if (!country) return countryUnavailable();
@@ -110,6 +113,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const originRejection = rejectCrossOriginRequest(request);
+  if (originRejection) return originRejection;
   try {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to edit your watchlist." }, { status: 401 });
