@@ -123,7 +123,7 @@ export async function PATCH(request: Request) {
           where: { id: movieId },
           data: { allowedCountries: current.allowedCountries, licenseOwner: current.owner, licenseStartDate: current.startDate, licenseExpiryDate: current.expiryDate, downloadPermission: false },
         });
-        await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReference: reference } });
+        await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReferenceRecorded: true } });
         return { kind: "UPDATED" as const, status: result.status };
       }, { isolationLevel: "Serializable" });
       if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
@@ -153,7 +153,7 @@ export async function PATCH(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, reason: rejectionReason, autoUnpublished: Boolean(movie?.isPublished) } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, rejectionReasonRecorded: true, autoUnpublished: Boolean(movie?.isPublished) } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
