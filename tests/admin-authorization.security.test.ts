@@ -51,28 +51,28 @@ describe("admin API authorization", () => {
     mocks.getServerSession.mockResolvedValue({ user: { id: USER_ID, role: "ADMIN" } });
     mocks.userFindUnique.mockResolvedValue({ role: "USER", isBanned: false });
     const response = await adminMoviesGet();
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.movieFindMany).not.toHaveBeenCalled();
   });
 
   it("denies a banned administrator", async () => {
     mocks.userFindUnique.mockResolvedValue({ role: "ADMIN", isBanned: true });
     const response = await adminLicensesGet();
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.licenseFindMany).not.toHaveBeenCalled();
   });
 
   it("denies a missing database account", async () => {
     mocks.userFindUnique.mockResolvedValue(null);
     const response = await adminMoviesGet();
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.movieFindMany).not.toHaveBeenCalled();
   });
 
   it.each(["ADMIN", "SUPERADMIN"])("allows an active %s based on the database role", async (role) => {
     mocks.userFindUnique.mockResolvedValue({ role, isBanned: false });
     const response = await adminMoviesGet();
-    expect(response.status).toBe(200);
+    expect(response?.status).toBe(200);
     expect(mocks.userFindUnique).toHaveBeenCalledWith({
       where: { id: USER_ID },
       select: { role: true, isBanned: true },
@@ -85,7 +85,7 @@ describe("admin API authorization", () => {
     mocks.getServerSession.mockResolvedValue({ user: { id: USER_ID, role: "SUPERADMIN" } });
     mocks.userFindUnique.mockResolvedValue({ role: "USER", isBanned: false });
     const response = await adminMoviesPost(postRequest({ role: "SUPERADMIN" }));
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.movieFindMany).not.toHaveBeenCalled();
   });
 });
