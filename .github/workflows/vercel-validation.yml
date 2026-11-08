@@ -28,6 +28,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/movieshub
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/movieshub
         run: npx prisma generate
+      - name: Run security tests
+        run: npm test
       - name: Type check
         run: npm run typecheck
       - name: Build Next.js application
