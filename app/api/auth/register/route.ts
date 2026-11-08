@@ -3,11 +3,35 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { registerSchema } from "@/lib/validations/auth";
 import { prisma } from "@/lib/prisma";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export const runtime = "nodejs";
 
+function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-vercel-forwarded-for") ??
+    request.headers.get("x-forwarded-for") ??
+    request.headers.get("x-real-ip");
+  return forwarded?.split(",")[0]?.trim() || null;
+}
+
 export async function POST(request: Request) {
   try {
+    const ip = clientIp(request);
+    try {
+      if (ip && !(await consumeAuthRateLimit(`register-ip:${ip}`, 5))) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    } catch {
+      console.error("Registration rate limiter unavailable; rejecting request.");
+      return NextResponse.json(
+        { error: "Registration is temporarily unavailable. Please try again later." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = registerSchema.safeParse(body);
 
@@ -20,6 +44,21 @@ export async function POST(request: Request) {
 
     const { name, email, password } = parsed.data;
     const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      if (!(await consumeAuthRateLimit(`register-email:${normalizedEmail}`, 3))) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    } catch {
+      console.error("Registration rate limiter unavailable; rejecting request.");
+      return NextResponse.json(
+        { error: "Registration is temporarily unavailable. Please try again later." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
