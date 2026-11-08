@@ -86,7 +86,7 @@ describe("admin mutation audit-log integration", () => {
       language: "ta", ageRating: "U", releaseYear: 2025, runtimeMinutes: 120,
       rating: 7, genre: "Drama",
     }));
-    expect(response.status).toBe(201);
+    expect(response?.status).toBe(201);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
     expect(mocks.movieCreate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
@@ -103,7 +103,7 @@ describe("admin mutation audit-log integration", () => {
       movieId: "movie-1", owner: "Studio", startDate: "2026-01-01",
       expiryDate: "2027-01-01", countries: "IN",
     }));
-    expect(response.status).toBe(201);
+    expect(response?.status).toBe(201);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
     expect(mocks.licenseUpsert).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
@@ -119,7 +119,7 @@ describe("admin mutation audit-log integration", () => {
     const response = await reviewLicense(request("/api/admin/licenses", "PATCH", {
       movieId: "movie-1", status: "ACTIVE", confirmed: true, agreementReference: "SIGNED-AGREEMENT-123",
     }));
-    expect(response.status).toBe(200);
+    expect(response?.status).toBe(200);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
     expect(mocks.licenseUpdate).toHaveBeenCalledTimes(1);
     expect(mocks.movieUpdate).toHaveBeenCalledTimes(1);
@@ -141,7 +141,7 @@ describe("admin mutation audit-log integration", () => {
       language: "ta", ageRating: "U", releaseYear: 2025, runtimeMinutes: 120,
       rating: 7, genre: "Drama",
     }));
-    expect(response.status).toBe(500);
+    expect(response?.status).toBe(500);
     expect(mocks.movieCreate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledTimes(1);
   });
