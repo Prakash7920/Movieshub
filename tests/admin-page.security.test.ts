@@ -62,7 +62,8 @@ describe("admin page privilege boundary", () => {
       expect(result).toBeTruthy();
       expect(mocks.redirect).not.toHaveBeenCalled();
     } else {
-      expect(result.type).toBe(Symbol.for("react.fragment"));
+      expect(result.type).toBe("main");
+      expect(result.props.children[0].props.children).toBe("Admin access required");
       expect(mocks.redirect).not.toHaveBeenCalled();
     }
   });
@@ -72,6 +73,7 @@ describe("admin page privilege boundary", () => {
 
     const result = await AdminPage();
 
+    expect(result.type).toBe("main");
     expect(result.props.children[0].props.children).toBe("Admin access required");
   });
 
@@ -81,6 +83,7 @@ describe("admin page privilege boundary", () => {
 
     const result = await AdminPage();
 
-    expect(result.props.children.props.children[0].props.children).toBe("Admin access required");
+    expect(result.type).toBe("main");
+    expect(result.props.children[0].props.children).toBe("Admin access required");
   });
 });
