@@ -7,6 +7,16 @@ import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export const runtime = "nodejs";
 
+const registrationMessage =
+  "If registration can be completed with these details, it has been processed. Try signing in; if you already have an account, use the password reset option if needed.";
+
+function registrationResponse() {
+  return NextResponse.json(
+    { message: registrationMessage },
+    { status: 202, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 function clientIp(request: Request): string | null {
   const forwarded = request.headers.get("x-vercel-forwarded-for") ??
     request.headers.get("x-forwarded-for") ??
@@ -38,7 +48,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid registration details." },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -65,15 +75,10 @@ export async function POST(request: Request) {
       select: { id: true },
     });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      );
-    }
+    if (existingUser) return registrationResponse();
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: {
         name: name.trim(),
         email: normalizedEmail,
@@ -86,22 +91,16 @@ export async function POST(request: Request) {
       select: { id: true, name: true, email: true, createdAt: true },
     });
 
-    return NextResponse.json(
-      { message: "Account created successfully.", user },
-      { status: 201 },
-    );
+    return registrationResponse();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      );
+      return registrationResponse();
     }
 
     console.error("Registration failed:", error);
     return NextResponse.json(
-      { error: "Unable to create your account right now. Please try again." },
-      { status: 500 },
+      { error: "Unable to process registration right now. Please try again." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
