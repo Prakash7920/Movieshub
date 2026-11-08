@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,31 @@ const resetSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-vercel-forwarded-for") ??
+    request.headers.get("x-forwarded-for") ??
+    request.headers.get("x-real-ip");
+  return forwarded?.split(",")[0]?.trim() || null;
+}
+
 export async function POST(request: Request) {
   try {
+    const ip = clientIp(request);
+    try {
+      if (ip && !(await consumeAuthRateLimit(`reset-ip:${ip}`, 20))) {
+        return NextResponse.json(
+          { error: "Too many password reset attempts. Please try again later." },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    } catch {
+      console.error("Password reset rate limiter unavailable; rejecting request.");
+      return NextResponse.json(
+        { error: "Password reset is temporarily unavailable. Please try again later." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const body: unknown = await request.json();
     const parsed = resetSchema.safeParse(body);
     if (!parsed.success) {
@@ -20,6 +44,21 @@ export async function POST(request: Request) {
     }
 
     const tokenHash = createHash("sha256").update(parsed.data.token).digest("hex");
+    try {
+      if (!(await consumeAuthRateLimit(`reset-token:${tokenHash}`, 5))) {
+        return NextResponse.json(
+          { error: "Too many password reset attempts. Please request a new reset link." },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    } catch {
+      console.error("Password reset rate limiter unavailable; rejecting request.");
+      return NextResponse.json(
+        { error: "Password reset is temporarily unavailable. Please try again later." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const now = new Date();
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
