@@ -69,19 +69,19 @@ describe("CSRF/origin integration for authenticated mutation APIs", () => {
 
   it.each(cases)("rejects a cross-site request before authentication: %s", async (_label, path, handler) => {
     const response = await handler(makeRequest(path, maliciousOrigin));
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.getServerSession).not.toHaveBeenCalled();
   });
 
   it.each(cases)("allows exact same-origin request to reach authentication: %s", async (_label, path, handler) => {
     const response = await handler(makeRequest(path, sameOrigin));
-    expect(response.status).toBe(401);
+    expect(response?.status).toBe(401);
     expect(mocks.getServerSession).toHaveBeenCalledTimes(1);
   });
 
   it.each(cases)("rejects requests with no Origin or Referer in production: %s", async (_label, path, handler) => {
     const response = await handler(makeRequest(path));
-    expect(response.status).toBe(403);
+    expect(response?.status).toBe(403);
     expect(mocks.getServerSession).not.toHaveBeenCalled();
   });
 });
