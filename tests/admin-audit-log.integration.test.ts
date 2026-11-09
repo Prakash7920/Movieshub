@@ -12,13 +12,13 @@ const mocks = vi.hoisted(() => ({
   licenseFindUnique: vi.fn(),
   licenseUpdate: vi.fn(),
   auditCreate: vi.fn(),
+  consumeRateLimit: vi.fn().mockResolvedValue({ allowed: true, limit: 100, remaining: 99, retryAfterSeconds: 0 }),
 }));
 
 vi.mock("next-auth/next", () => ({ getServerSession: mocks.getServerSession }));
 vi.mock("@/lib/auth-options", () => ({ authOptions: {} }));
-vi.mock("../lib/security/rate-limit", () => ({
-  consumeRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
-}));
+vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
+vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
