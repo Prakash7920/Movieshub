@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { logSafeError } from "@/lib/security/safe-log";
 import { getSessionRevocationId } from "@/lib/security/session-revocation";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 
 /**
  * Preview-only authentication diagnostics.
@@ -50,6 +51,10 @@ export const authOptions: NextAuthOptions = {
             : typeof forwardedFor === "string"
               ? forwardedFor.split(",").map((part: string) => part.trim()).filter(Boolean).at(-1)
               : undefined;
+          const sharedEmailAllowed = await consumeAuthRateLimit("login-email:" + email, 5);
+          const sharedIpAllowed = ip
+            ? await consumeAuthRateLimit("login-ip:" + ip, 30)
+            : true;
           const ipLimit = ip
             ? await consumeRateLimit("login-ip", ip, 30, 15 * 60)
             : { allowed: true };
@@ -58,7 +63,7 @@ export const authOptions: NextAuthOptions = {
             ipAllowed: ipLimit.allowed,
             ipLimitApplied: Boolean(ip),
           });
-          if (!emailLimit.allowed || !ipLimit.allowed) {
+          if (!sharedEmailAllowed || !sharedIpAllowed || !emailLimit.allowed || !ipLimit.allowed) {
             authDiagnostic("login_rejected", { reason: "rate_limit" });
             return null;
           }
