@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashOneTimeToken, isWellFormedOneTimeToken } from "@/lib/security/tokens";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
 
 export const runtime = "nodejs";
@@ -25,6 +26,12 @@ export async function POST(request: Request) {
   try {
     const ip = getClientIp(request.headers);
     if (ip) {
+      const sharedIpAllowed = await consumeAuthRateLimit("reset-ip:" + ip, 20, 60 * 60 * 1000);
+      if (!sharedIpAllowed) {
+        return NextResponse.json({ error: "Too many reset attempts. Please request a new link later." }, {
+          status: 429, headers: { "Cache-Control": "no-store" },
+        });
+      }
       const limit = await consumeRateLimit("password-reset-complete-ip", ip, 10, 60 * 60);
       if (!limit.allowed) {
         return NextResponse.json({ error: "Too many reset attempts. Please request a new link later." }, {
@@ -41,6 +48,12 @@ export async function POST(request: Request) {
     }
 
     const tokenHash = hashOneTimeToken(parsed.data.token);
+    const tokenAllowed = await consumeAuthRateLimit("reset-token:" + tokenHash, 5);
+    if (!tokenAllowed) {
+      return NextResponse.json({ error: "Too many reset attempts. Please request a new reset link." }, {
+        status: 429, headers: { "Cache-Control": "no-store" },
+      });
+    }
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },
       select: { id: true, userId: true, expiresAt: true, usedAt: true },
