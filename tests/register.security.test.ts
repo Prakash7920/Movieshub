@@ -9,7 +9,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { user: { findUnique: mocks.findUnique, create: mocks.create } },
+  prisma: {
+    user: { findUnique: mocks.findUnique, create: mocks.create },
+    rateLimitBucket: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ count: 1, expiresAt: create.expiresAt })),
+    },
+    authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
+  },
 }));
 vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 vi.mock("@/lib/auth-rate-limit", () => ({
@@ -20,7 +27,7 @@ vi.mock("bcryptjs", () => ({ default: { hash: mocks.hash } }));
 import { POST } from "../app/api/auth/register/route";
 
 const registrationMessage =
-  "If registration can be completed with these details, it has been processed. Try signing in; if you already have an account, use the password reset option if needed.";
+  "If registration can be completed, further instructions will be sent to that email address.";
 
 function request(email = "member@example.test", extra: Record<string, unknown> = {}) {
   return new Request("https://nexafilm.example/api/auth/register", {
@@ -47,6 +54,10 @@ async function publicResult(response: Response) {
 describe("registration account enumeration protection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("RATE_LIMIT_SECRET", "test-rate-limit-secret-at-least-32-chars");
+    vi.stubEnv("NEXTAUTH_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("VERCEL_ENV", "");
     mocks.consumeAuthRateLimit.mockResolvedValue(true);
     mocks.consumeRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
     mocks.findUnique.mockResolvedValue(null);
