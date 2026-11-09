@@ -21,7 +21,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     user: { findUnique: mocks.userFindUnique },
-    movie: { findMany: mocks.movieFindMany },
+    movie: { findMany: mocks.movieFindMany, count: vi.fn().mockResolvedValue(0) },
     genre: { findMany: mocks.genreFindMany },
     license: { findMany: mocks.licenseFindMany },
   },
