@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,7 @@
     "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
     "test": "tsx --test tests/security-primitives.test.ts",
     "test:e2e": "playwright test",
-    "test:integration": "vitest run tests/**/*.integration.test.ts",
+    "test:integration": "vitest run tests/*.integration.test.ts",
     "test:security": "vitest run",
     "test:all": "npm run test && npm run test:security"
   },
