@@ -68,6 +68,9 @@ jobs:
       - name: Unit and security primitive tests
         run: npm run test
 
+      - name: Vitest security test suite
+        run: npm run test:security
+
       - name: Database security integration tests
         run: npm run test:integration
 
