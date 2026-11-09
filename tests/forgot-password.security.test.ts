@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   deleteMany: vi.fn(),
   create: vi.fn(),
   consumeAuthRateLimit: vi.fn(),
+  consumeRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -19,6 +20,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/auth-rate-limit", () => ({ consumeAuthRateLimit: mocks.consumeAuthRateLimit }));
+vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 
 import { POST } from "../app/api/auth/forgot-password/route";
 
@@ -33,7 +35,7 @@ const credentialUser = {
 function request(email = "member@example.test") {
   return new Request("https://nexafilm.example/api/auth/forgot-password", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-vercel-forwarded-for": "192.0.2.10" },
+    headers: { "content-type": "application/json", origin: "https://nexafilm.example", "x-vercel-forwarded-for": "192.0.2.10" },
     body: JSON.stringify({ email }),
   });
 }
@@ -48,6 +50,7 @@ describe("forgot-password public response security", () => {
     process.env.RESEND_API_KEY = "test-resend-key";
     process.env.NEXTAUTH_URL = "https://nexafilm.example";
     mocks.consumeAuthRateLimit.mockResolvedValue(true);
+    mocks.consumeRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
     mocks.findUnique.mockResolvedValue(null);
     mocks.count.mockResolvedValue(0);
     mocks.deleteMany.mockResolvedValue({ count: 0 });
