@@ -40,11 +40,11 @@ export function RegisterForm() {
       const result = await response.json();
 
       if (!response.ok) {
-        setServerError(result.error ?? "Unable to create your account. Please try again.");
+        setServerError(result.error ?? "Unable to process registration. Please try again.");
         return;
       }
 
-      setServerMessage(result.message || "Account created successfully.");
+      setServerMessage(result.message ?? "Registration request processed. Please try signing in.");
     } catch {
       setServerError("Could not connect to the server. Please check your internet and try again.");
     } finally {
@@ -116,7 +116,7 @@ export function RegisterForm() {
         disabled={isSubmitting}
         className="w-full bg-red-600 hover:bg-red-500"
       >
-        {isSubmitting ? "Creating account..." : "Create account"}
+        {isSubmitting ? "Processing..." : "Create account"}
       </Button>
     </form>
   );
