@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    rateLimitBucket: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ count: 1, expiresAt: create.expiresAt })),
+    },
+    authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     user: { findUnique: mocks.findUnique },
     passwordResetToken: {
       count: mocks.count,
@@ -48,6 +53,7 @@ describe("forgot-password public response security", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.RESEND_API_KEY = "test-resend-key";
+    process.env.RATE_LIMIT_SECRET = "test-rate-limit-secret-at-least-32-chars";
     process.env.NEXTAUTH_URL = "https://nexafilm.example";
     mocks.consumeAuthRateLimit.mockResolvedValue(true);
     mocks.consumeRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
@@ -70,7 +76,7 @@ describe("forgot-password public response security", () => {
   it("does not disclose database lookup failures", async () => {
     mocks.findUnique.mockRejectedValueOnce(new Error("simulated database outage"));
     const result = await publicResult(await POST(request()));
-    expect(result).toEqual({ status: 200, body: { message: genericMessage } });
+    expect(result).toEqual({ status: 202, body: { message: genericMessage } });
   });
 
   it("does not disclose email-provider failures", async () => {
