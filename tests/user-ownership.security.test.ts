@@ -22,6 +22,11 @@ vi.mock("@/lib/licensing/territory", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    rateLimitBucket: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ count: 1, expiresAt: create.expiresAt })),
+    },
+    authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     watchlist: {
       findMany: mocks.watchlistFindMany,
       upsert: mocks.watchlistUpsert,
@@ -64,6 +69,7 @@ function request(path: string, method: string, body?: Record<string, unknown>) {
 describe("watchlist and watch-history user ownership", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("RATE_LIMIT_SECRET", "test-rate-limit-secret-at-least-32-chars");
     vi.stubEnv("NEXTAUTH_URL", ORIGIN);
     vi.stubEnv("NEXT_PUBLIC_APP_URL", ORIGIN);
     mocks.getServerSession.mockReset().mockResolvedValue({ user: { id: USER_A } });
