@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 export type AdminAuditEvent = {
   actorUserId: string;
+  actorEmail: string;
   action: string;
   targetType: string;
   targetId?: string | null;
@@ -23,6 +24,7 @@ export async function writeAdminAuditLog(
   await tx.adminAuditLog.create({
     data: {
       actorUserId: event.actorUserId,
+      actorEmail: event.actorEmail,
       action: event.action,
       targetType: event.targetType,
       targetId: event.targetId ?? null,
