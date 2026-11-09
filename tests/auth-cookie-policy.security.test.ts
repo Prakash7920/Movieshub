@@ -15,6 +15,8 @@ describe("NextAuth cookie transport policy", () => {
 
   it("forces secure cookies in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("MOVIESHUB_E2E", "false");
+    vi.stubEnv("NEXTAUTH_URL", "https://nexafilm.example");
     vi.resetModules();
     const { authOptions } = await import("../lib/auth-options");
     expect(authOptions.useSecureCookies).toBe(true);
@@ -22,6 +24,8 @@ describe("NextAuth cookie transport policy", () => {
 
   it("keeps secure-cookie transport disabled for local development", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("MOVIESHUB_E2E", "false");
+    vi.stubEnv("NEXTAUTH_URL", "http://localhost:3000");
     vi.resetModules();
     const { authOptions } = await import("../lib/auth-options");
     expect(authOptions.useSecureCookies).toBe(false);
