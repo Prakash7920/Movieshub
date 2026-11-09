@@ -75,7 +75,7 @@ describe("admin API authorization", () => {
     expect(response?.status).toBe(200);
     expect(mocks.userFindUnique).toHaveBeenCalledWith({
       where: { id: USER_ID },
-      select: { role: true, isBanned: true },
+      select: { role: true, isBanned: true, email: true },
     });
     expect(mocks.movieFindMany).toHaveBeenCalledTimes(1);
     expect(mocks.genreFindMany).toHaveBeenCalledTimes(1);
