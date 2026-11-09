@@ -9,6 +9,7 @@ describe("transactional admin audit writer", () => {
 
     await writeAdminAuditLog(tx, {
       actorUserId: "admin-user-1",
+      actorEmail: "admin@example.test",
       action: "MOVIE_DRAFT_CREATED",
       targetType: "Movie",
       targetId: "movie-1",
@@ -18,6 +19,7 @@ describe("transactional admin audit writer", () => {
     expect(create).toHaveBeenCalledWith({
       data: {
         actorUserId: "admin-user-1",
+        actorEmail: "admin@example.test",
         action: "MOVIE_DRAFT_CREATED",
         targetType: "Movie",
         targetId: "movie-1",
