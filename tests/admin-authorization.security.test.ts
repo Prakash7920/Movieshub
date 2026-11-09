@@ -16,6 +16,11 @@ vi.mock("@/lib/security/rate-limit", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    rateLimitBucket: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ count: 1, expiresAt: create.expiresAt })),
+    },
+    authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     user: { findUnique: mocks.userFindUnique },
     movie: { findMany: mocks.movieFindMany },
     genre: { findMany: mocks.genreFindMany },
@@ -40,6 +45,7 @@ function postRequest(body: Record<string, unknown>) {
 describe("admin API authorization", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("RATE_LIMIT_SECRET", "test-rate-limit-secret-at-least-32-chars");
     vi.stubEnv("NEXTAUTH_URL", ORIGIN);
     vi.stubEnv("NEXT_PUBLIC_APP_URL", ORIGIN);
     mocks.getServerSession.mockReset().mockResolvedValue({ user: { id: USER_ID } });
@@ -79,7 +85,7 @@ describe("admin API authorization", () => {
     expect(response?.status).toBe(200);
     expect(mocks.userFindUnique).toHaveBeenCalledWith({
       where: { id: USER_ID },
-      select: { role: true, isBanned: true },
+      select: { role: true, isBanned: true, email: true },
     });
     expect(mocks.movieFindMany).toHaveBeenCalledTimes(1);
     expect(mocks.genreFindMany).toHaveBeenCalledTimes(1);
