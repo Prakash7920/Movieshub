@@ -99,7 +99,6 @@ export async function POST(request: Request) {
     });
 
     const appUrl = getPublicAppUrl();
-    let verificationSent = false;
     if (appUrl) {
       const oneTimeToken = createOneTimeToken();
       await prisma.emailVerificationToken.deleteMany({ where: { userId: user.id, usedAt: null } });
@@ -116,7 +115,6 @@ export async function POST(request: Request) {
         subject: "Verify your NexaFilm email",
         html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Welcome to NexaFilm</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p><p style="color:#666;font-size:12px">NexaFilm · One Platform. Every Language. Endless Stories.</p></div>`,
       });
-      verificationSent = delivery.sent;
       if (!delivery.sent) {
         await prisma.emailVerificationToken.deleteMany({ where: { tokenHash: oneTimeToken.tokenHash } });
       }
