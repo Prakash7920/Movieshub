@@ -96,7 +96,7 @@ describe("admin mutation audit-log integration", () => {
       language: "ta", ageRating: "U", releaseYear: 2025, runtimeMinutes: 120,
       rating: 7, genre: "Drama",
     }));
-    expect(response?.status).toBe(201);
+    expect(response?.status, JSON.stringify({ body: await response?.clone().json(), sessionCalls: mocks.getServerSession.mock.calls.length, userCalls: mocks.userFindUnique.mock.calls.length, rateLimitCalls: mocks.consumeRateLimit.mock.calls.length })).toBe(201);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
     expect(mocks.movieCreate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
