@@ -23,6 +23,9 @@ vi.mock("@/lib/auth-rate-limit", () => ({
   consumeAuthRateLimit: mocks.consumeAuthRateLimit,
 }));
 vi.mock("bcryptjs", () => ({ default: { hash: mocks.hash } }));
+vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: async () => ({ allowed: true, limit: 100, remaining: 99, retryAfterSeconds: 0 }) }));
+vi.mock("@/lib/email/resend", () => ({ getPublicAppUrl: () => null, sendTransactionalEmail: async () => ({ sent: false, reason: "not_configured" }) }));
+vi.mock("@/lib/security/tokens", () => ({ createOneTimeToken: () => ({ token: "test-token", tokenHash: "test-token-hash" }) }));
 
 import { POST } from "../app/api/auth/register/route";
 
