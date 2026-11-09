@@ -12,13 +12,11 @@ const mocks = vi.hoisted(() => ({
   licenseFindUnique: vi.fn(),
   licenseUpdate: vi.fn(),
   auditCreate: vi.fn(),
-  consumeRateLimit: vi.fn().mockResolvedValue({ allowed: true, limit: 100, remaining: 99, retryAfterSeconds: 0 }),
 }));
 
 vi.mock("next-auth/next", () => ({ getServerSession: mocks.getServerSession }));
 vi.mock("@/lib/auth-options", () => ({ authOptions: {} }));
-vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
-vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
+vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: async () => ({ allowed: true, limit: 100, remaining: 99, retryAfterSeconds: 0 }) }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -96,7 +94,7 @@ describe("admin mutation audit-log integration", () => {
       language: "ta", ageRating: "U", releaseYear: 2025, runtimeMinutes: 120,
       rating: 7, genre: "Drama",
     }));
-    expect(response?.status, JSON.stringify({ body: await response?.clone().json(), sessionCalls: mocks.getServerSession.mock.calls.length, userCalls: mocks.userFindUnique.mock.calls.length, rateLimitCalls: mocks.consumeRateLimit.mock.calls.length })).toBe(201);
+    expect(response?.status).toBe(201);
     expect(mocks.transaction).toHaveBeenCalledTimes(1);
     expect(mocks.movieCreate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
