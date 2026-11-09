@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
   useSecureCookies: process.env.MOVIESHUB_E2E === "true"
     ? false
     : process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://") === true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   pages: { signIn: "/auth/login" },
   providers: [
     CredentialsProvider({
