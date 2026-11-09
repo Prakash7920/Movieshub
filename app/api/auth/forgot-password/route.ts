@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createOneTimeToken } from "@/lib/security/tokens";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
 import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
 
     const email = parsed.data.email.trim().toLowerCase();
     const ip = getClientIp(request.headers);
+    const sharedIpAllowed = ip ? await consumeAuthRateLimit("forgot-ip:" + ip, 10, 60 * 60 * 1000) : true;
+    const sharedEmailAllowed = await consumeAuthRateLimit("forgot-email:" + email, 3, 60 * 60 * 1000);
+    if (!sharedIpAllowed || !sharedEmailAllowed) {
+      return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
+    }
     const emailLimit = await consumeRateLimit("password-reset-email", email, 3, 60 * 60);
     const ipLimit = ip
       ? await consumeRateLimit("password-reset-ip", ip, 10, 60 * 60)
