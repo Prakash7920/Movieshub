@@ -79,6 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
   } catch {
-    return NextResponse.json({ error: "Unable to process your request right now." }, { status: 503 });
+    // Keep account and infrastructure state indistinguishable to the caller.
+    return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
   }
 }
