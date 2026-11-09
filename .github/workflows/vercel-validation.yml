@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, phase-3-production-validation-security]
+    branches: [main, phase-3-production-validation-security, brand/nexafilm-rebrand, integration/nexafilm-security]
   workflow_dispatch:
 
 permissions:
