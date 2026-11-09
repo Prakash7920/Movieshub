@@ -26,6 +26,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/auth-rate-limit", () => ({ consumeAuthRateLimit: mocks.consumeAuthRateLimit }));
 vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
+vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: async () => ({ allowed: true, limit: 100, remaining: 99, retryAfterSeconds: 0 }) }));
 
 import { POST } from "../app/api/auth/forgot-password/route";
 
@@ -70,7 +71,7 @@ describe("forgot-password public response security", () => {
     const known = await publicResult(await POST(request()));
 
     expect(unknown).toEqual(known);
-    expect(known).toEqual({ status: 200, body: { message: genericMessage } });
+    expect(known).toEqual({ status: 202, body: { message: genericMessage } });
   });
 
   it("does not disclose database lookup failures", async () => {
@@ -83,13 +84,13 @@ describe("forgot-password public response security", () => {
     mocks.findUnique.mockResolvedValueOnce(credentialUser);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("provider failure", { status: 503 })));
     const result = await publicResult(await POST(request()));
-    expect(result).toEqual({ status: 200, body: { message: genericMessage } });
+    expect(result).toEqual({ status: 202, body: { message: genericMessage } });
   });
 
   it("does not disclose rate-limiter/database failures", async () => {
     mocks.consumeAuthRateLimit.mockRejectedValueOnce(new Error("simulated limiter outage"));
     const result = await publicResult(await POST(request()));
-    expect(result).toEqual({ status: 200, body: { message: genericMessage } });
+    expect(result).toEqual({ status: 202, body: { message: genericMessage } });
     expect(mocks.findUnique).not.toHaveBeenCalled();
   });
 
