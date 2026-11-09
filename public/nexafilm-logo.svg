@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
+  <title id="title">NexaFilm</title>
+  <desc id="desc">NexaFilm gold filmstrip N mark with a red play symbol and wordmark.</desc>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a6"/><stop offset=".48" stop-color="#dcae42"/><stop offset="1" stop-color="#8b5815"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5555"/><stop offset="1" stop-color="#c20d27"/></linearGradient>
+  </defs>
+  <g transform="translate(8 14)">
+    <path d="M20 132 67 18h29l53 113h-34L82 58l-29 74Z" fill="url(#gold)" stroke="#f8d978" stroke-width="2"/>
+    <path d="m65 18 78 114h-32L34 18Z" fill="url(#gold)" stroke="#f8d978" stroke-width="2"/>
+    <path d="M18 130c33 18 91 18 128-2" fill="none" stroke="url(#red)" stroke-width="11" stroke-linecap="round"/>
+    <path d="m75 65 0 31 28-15.5Z" fill="url(#red)" stroke="#ff7777" stroke-width="1.5"/>
+    <g fill="#171717" opacity=".8"><rect x="28" y="38" width="7" height="11" rx="1"/><rect x="20" y="60" width="7" height="11" rx="1"/><rect x="12" y="82" width="7" height="11" rx="1"/></g>
+  </g>
+  <text x="180" y="111" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="700" letter-spacing="-3" fill="#f8fafc">Nexa</text>
+  <text x="382" y="111" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="700" letter-spacing="-3" fill="#e32636">Film</text>
+  <text x="185" y="148" font-family="Arial, Helvetica, sans-serif" font-size="18" letter-spacing="3" fill="#cbd5e1">ONE PLATFORM. EVERY LANGUAGE. ENDLESS STORIES.</text>
+</svg>
