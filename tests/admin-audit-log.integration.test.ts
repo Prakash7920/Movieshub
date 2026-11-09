@@ -60,7 +60,7 @@ describe("admin mutation audit-log integration", () => {
     vi.stubEnv("NEXTAUTH_URL", ORIGIN);
     vi.stubEnv("NEXT_PUBLIC_APP_URL", ORIGIN);
     mocks.getServerSession.mockResolvedValue({ user: { id: USER_ID } });
-    mocks.userFindUnique.mockResolvedValue({ role: "ADMIN", isBanned: false });
+    mocks.userFindUnique.mockResolvedValue({ role: "ADMIN", isBanned: false, email: "admin@example.test" });
     mocks.movieCreate.mockResolvedValue({ id: "movie-1", slug: "sample-film", titleEn: "Sample Film" });
     mocks.movieFindUnique.mockResolvedValue({ id: "movie-1", isPublished: false });
     mocks.movieUpdate.mockResolvedValue({ id: "movie-1", isPublished: true, contentStatus: "PUBLISHED" });
@@ -91,7 +91,7 @@ describe("admin mutation audit-log integration", () => {
     expect(mocks.movieCreate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
       data: {
-        actorUserId: USER_ID, action: "MOVIE_DRAFT_CREATED", targetType: "Movie",
+        actorUserId: USER_ID, actorEmail: "admin@example.test", action: "MOVIE_DRAFT_CREATED", targetType: "Movie",
         targetId: "movie-1", metadata: { slug: "sample-film" },
       },
       select: { id: true },
@@ -108,7 +108,7 @@ describe("admin mutation audit-log integration", () => {
     expect(mocks.licenseUpsert).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
       data: {
-        actorUserId: USER_ID, action: "LICENSE_SAVED_PENDING", targetType: "License",
+        actorUserId: USER_ID, actorEmail: "admin@example.test", action: "LICENSE_SAVED_PENDING", targetType: "License",
         targetId: "license-1", metadata: { movieId: "movie-1", autoUnpublished: false },
       },
       select: { id: true },
@@ -125,7 +125,7 @@ describe("admin mutation audit-log integration", () => {
     expect(mocks.movieUpdate).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
       data: {
-        actorUserId: USER_ID, action: "LICENSE_APPROVED", targetType: "License",
+        actorUserId: USER_ID, actorEmail: "admin@example.test", action: "LICENSE_APPROVED", targetType: "License",
         targetId: "license-1", metadata: { movieId: "movie-1", agreementReferenceRecorded: true },
       },
       select: { id: true },
