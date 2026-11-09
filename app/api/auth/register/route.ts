@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       if (!sharedIpAllowed || !sharedEmailAllowed) {
         return NextResponse.json(
           { error: "Too many registration attempts. Please try again later." },
-          { status: 429, headers: { "Cache-Control": "no-store" } },
+          { status: 429, headers: { "Retry-After": String(15 * 60), "Cache-Control": "no-store" } },
         );
       }
       const emailLimit = await consumeRateLimit("register-email", normalizedEmail, 3, 60 * 60);
