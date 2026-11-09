@@ -35,6 +35,7 @@ describe("transactional admin audit writer", () => {
 
     await writeAdminAuditLog(tx, {
       actorUserId: "admin-user-1",
+      actorEmail: "admin@example.test",
       action: "TEST_ACTION",
       targetType: "Movie",
     });
@@ -56,6 +57,7 @@ describe("transactional admin audit writer", () => {
 
     await expect(writeAdminAuditLog(tx, {
       actorUserId: "admin-user-1",
+      actorEmail: "admin@example.test",
       action: "MOVIE_PUBLISHED",
       targetType: "Movie",
       targetId: "movie-1",
