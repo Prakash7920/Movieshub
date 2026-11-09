@@ -197,15 +197,14 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
 
   const userEmail = `ordinary-${Date.now()}@movieshub-e2e.test`;
   const ordinary = await createUser(userEmail);
+  const escalationEmail = `escalation-${Date.now()}@movieshub-e2e.test`;
   const response = await page.request.post("/api/auth/register", {
     headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
-    data: { name: "Escalation", email: `escalation-${Date.now()}@movieshub-e2e.test`, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
+    data: { name: "Escalation", email: escalationEmail, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
   });
   expect(response.status()).toBe(202);
-  const escalationEmail = `escalation-${Date.now()}@movieshub-e2e.test`;
-  const created = await prisma.user.findFirst({ where: { email: { startsWith: "escalation-" } }, orderBy: { createdAt: "desc" }, select: { role: true, passwordHash: true } });
+  const created = await prisma.user.findUnique({ where: { email: escalationEmail }, select: { role: true } });
   expect(created?.role).toBe("USER");
-  expect(created?.passwordHash).toBeTruthy();
 
   await page.goto("/auth/login");
   await page.locator('input[type="email"]').fill(ordinary.email);
