@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">NexaFilm</title>
+  <defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a6"/><stop offset=".5" stop-color="#dcae42"/><stop offset="1" stop-color="#8b5815"/></linearGradient><linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5555"/><stop offset="1" stop-color="#c20d27"/></linearGradient></defs>
+  <rect x="3" y="3" width="122" height="122" rx="28" fill="#080a10" stroke="#9d1c2d" stroke-width="3"/>
+  <path d="M19 99 48 23h18l42 76H83L57 50 39 99Z" fill="url(#gold)" stroke="#f8d978" stroke-width="2"/>
+  <path d="m49 24 60 75H85L31 24Z" fill="url(#gold)" stroke="#f8d978" stroke-width="2"/>
+  <path d="M18 99c28 14 71 14 94-2" fill="none" stroke="url(#red)" stroke-width="8" stroke-linecap="round"/>
+  <path d="m56 53 0 27 24-13.5Z" fill="url(#red)" stroke="#ff7777" stroke-width="1.5"/>
+</svg>
