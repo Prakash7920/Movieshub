@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Globe2 } from "lucide-react";
 import { languageLabels } from "@/lib/translations";
 import { useLanguage } from "@/components/providers/language-provider";
@@ -22,7 +24,12 @@ export function LanguageSwitcher() {
 export function Footer() {
   return (
     <footer className="border-t border-white/10 py-8 text-center text-sm text-gray-500">
-      © {new Date().getFullYear()} MoviesHub. Sample catalogue only. Playback is unavailable until distribution rights are verified.
+      <p>© {new Date().getFullYear()} NexaFilm. One Platform. Every Language. Endless Stories. Sample catalogue only; playback is unavailable until distribution rights are verified.</p>
+      <nav aria-label="Legal" className="mt-4 flex justify-center gap-5 text-xs text-gray-400">
+        <Link className="transition hover:text-white" href="/privacy">Privacy Policy</Link>
+        <Link className="transition hover:text-white" href="/terms">Terms of Service</Link>
+        <a className="transition hover:text-white" href="mailto:supportnexafilm@gmail.com">Contact</a>
+      </nav>
     </footer>
   );
 }
