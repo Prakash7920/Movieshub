@@ -43,6 +43,7 @@ describe("transactional admin audit writer", () => {
     expect(create).toHaveBeenCalledWith({
       data: {
         actorUserId: "admin-user-1",
+        actorEmail: "admin@example.test",
         action: "TEST_ACTION",
         targetType: "Movie",
         targetId: null,
