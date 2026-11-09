@@ -2,7 +2,7 @@ name: Vercel build and security validation
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/nexafilm-security]
   pull_request:
     branches: [main, phase-3-production-validation-security, brand/nexafilm-rebrand, integration/nexafilm-security]
   workflow_dispatch:
