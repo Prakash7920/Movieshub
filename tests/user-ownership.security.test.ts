@@ -28,11 +28,14 @@ vi.mock("@/lib/prisma", () => ({
     authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     watchlist: {
       findMany: mocks.watchlistFindMany,
+      findFirst: vi.fn().mockResolvedValue(null),
+      count: vi.fn().mockResolvedValue(0),
       upsert: mocks.watchlistUpsert,
       deleteMany: mocks.watchlistDeleteMany,
     },
     watchHistory: {
       findMany: mocks.historyFindMany,
+      count: vi.fn().mockResolvedValue(0),
       upsert: mocks.historyUpsert,
       deleteMany: mocks.historyDeleteMany,
     },
