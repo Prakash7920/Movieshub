@@ -55,7 +55,7 @@ async function requireAdmin(request: Request) {
   } catch {
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
-  let user: { role: string; isBanned: boolean } | null;
+  let user: { role: string; isBanned: boolean; email: string } | null;
   try {
     user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true, email: true } });
   } catch (error) {
