@@ -21,11 +21,11 @@ async function requireAdmin() {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
-  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true, email: true } });
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
-  return { userId: sessionUser.id };
+  return { userId: sessionUser.id, actorEmail: user.email };
 }
 
 export async function GET() {
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       },
       select: { id: true, slug: true, titleEn: true },
       });
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_CREATED", targetType: "Movie", targetId: created.id, metadata: { slug: created.slug } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_CREATED", targetType: "Movie", targetId: created.id, metadata: { slug: created.slug } });
       return created;
     });
     return NextResponse.json({ message: "Movie saved as draft. Publish it after reviewing metadata and rights.", movie }, { status: 201 });
@@ -127,7 +127,7 @@ export async function PATCH(request: Request) {
         data: { isPublished: b.publish as boolean, contentStatus: b.publish ? ContentStatus.PUBLISHED : ContentStatus.UNPUBLISHED },
         select: { id: true, isPublished: true, contentStatus: true },
       });
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: b.publish ? "MOVIE_PUBLISHED" : "MOVIE_UNPUBLISHED", targetType: "Movie", targetId: updated.id });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: b.publish ? "MOVIE_PUBLISHED" : "MOVIE_UNPUBLISHED", targetType: "Movie", targetId: updated.id });
       return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (!updated) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
@@ -184,7 +184,7 @@ export async function PUT(request: Request) {
         language, releaseYear, runtimeMinutes, ageRating: (b.ageRating as string).trim().slice(0,20), rating,
         genres: { deleteMany: {}, create: { genre: { connectOrCreate: { where: { slug: genreSlug }, create: { name: genreName, slug: genreSlug } } } } },
       } });
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_UPDATED", targetType: "Movie", targetId: b.id as string, metadata: { slug } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_UPDATED", targetType: "Movie", targetId: b.id as string, metadata: { slug } });
       return "UPDATED" as const;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (updateResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
@@ -211,7 +211,7 @@ export async function DELETE(request: Request) {
       if (!existing) return "NOT_FOUND" as const;
       if (existing.isPublished || existing.contentStatus !== ContentStatus.DRAFT) return "NOT_DRAFT" as const;
       await tx.movie.delete({ where: { id } });
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_DELETED", targetType: "Movie", targetId: id });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_DELETED", targetType: "Movie", targetId: id });
       return "DELETED" as const;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (deleteResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
