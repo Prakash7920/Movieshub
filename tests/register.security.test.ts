@@ -5,11 +5,13 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   consumeAuthRateLimit: vi.fn(),
   hash: vi.fn(),
+  consumeRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: mocks.findUnique, create: mocks.create } },
 }));
+vi.mock("@/lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 vi.mock("@/lib/auth-rate-limit", () => ({
   consumeAuthRateLimit: mocks.consumeAuthRateLimit,
 }));
@@ -25,6 +27,7 @@ function request(email = "member@example.test", extra: Record<string, unknown> =
     method: "POST",
     headers: {
       "content-type": "application/json",
+      origin: "https://nexafilm.example",
       "x-vercel-forwarded-for": "192.0.2.20",
     },
     body: JSON.stringify({
@@ -45,6 +48,7 @@ describe("registration account enumeration protection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.consumeAuthRateLimit.mockResolvedValue(true);
+    mocks.consumeRateLimit.mockResolvedValue({ allowed: true, retryAfterSeconds: 0 });
     mocks.findUnique.mockResolvedValue(null);
     mocks.create.mockResolvedValue({
       id: "new-user-id",
