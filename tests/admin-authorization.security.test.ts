@@ -50,32 +50,32 @@ describe("admin API authorization", () => {
   it("denies a normal user even when the client session claims ADMIN", async () => {
     mocks.getServerSession.mockResolvedValue({ user: { id: USER_ID, role: "ADMIN" } });
     mocks.userFindUnique.mockResolvedValue({ role: "USER", isBanned: false });
-    const response = await adminMoviesGet();
+    const response = await adminMoviesGet(new Request("https://nexafilm.example/api/admin/movies"));
     expect(response?.status).toBe(403);
     expect(mocks.movieFindMany).not.toHaveBeenCalled();
   });
 
   it("denies a banned administrator", async () => {
     mocks.userFindUnique.mockResolvedValue({ role: "ADMIN", isBanned: true });
-    const response = await adminLicensesGet();
+    const response = await adminLicensesGet(new Request("https://nexafilm.example/api/admin/licenses"));
     expect(response?.status).toBe(403);
     expect(mocks.licenseFindMany).not.toHaveBeenCalled();
   });
 
   it("denies a missing database account", async () => {
     mocks.userFindUnique.mockResolvedValue(null);
-    const response = await adminMoviesGet();
+    const response = await adminMoviesGet(new Request("https://nexafilm.example/api/admin/movies"));
     expect(response?.status).toBe(403);
     expect(mocks.movieFindMany).not.toHaveBeenCalled();
   });
 
   it.each(["ADMIN", "SUPERADMIN"])("allows an active %s based on the database role", async (role) => {
     mocks.userFindUnique.mockResolvedValue({ role, isBanned: false });
-    const response = await adminMoviesGet();
+    const response = await adminMoviesGet(new Request("https://nexafilm.example/api/admin/movies"));
     expect(response?.status).toBe(200);
     expect(mocks.userFindUnique).toHaveBeenCalledWith({
       where: { id: USER_ID },
-      select: { role: true, isBanned: true, email: true },
+      select: { role: true, isBanned: true },
     });
     expect(mocks.movieFindMany).toHaveBeenCalledTimes(1);
     expect(mocks.genreFindMany).toHaveBeenCalledTimes(1);
