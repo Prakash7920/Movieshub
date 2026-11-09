@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next-auth/next", () => ({ getServerSession: mocks.getServerSession }));
 vi.mock("@/lib/auth-options", () => ({ authOptions: {} }));
+vi.mock("@/lib/security/rate-limit", () => ({
+  consumeRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
+}));
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: mocks.userFindUnique },
