@@ -127,6 +127,7 @@ describe("registration account enumeration protection", () => {
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
         code: "P2002",
         clientVersion: "5.22.0",
+        meta: { target: ["email"] },
       }),
     );
 
