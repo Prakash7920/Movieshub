@@ -22,6 +22,11 @@ vi.mock("../lib/security/rate-limit", () => ({ consumeRateLimit: mocks.consumeRa
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    rateLimitBucket: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ count: 1, expiresAt: create.expiresAt })),
+    },
+    authRateLimit: { upsert: vi.fn().mockResolvedValue({ count: 1 }) },
     user: { findUnique: mocks.userFindUnique },
     $transaction: mocks.transaction,
   },
@@ -61,6 +66,7 @@ function transactionClient() {
 describe("admin mutation audit-log integration", () => {
   beforeEach(() => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("RATE_LIMIT_SECRET", "test-rate-limit-secret-at-least-32-chars");
     vi.stubEnv("NEXTAUTH_URL", ORIGIN);
     vi.stubEnv("NEXT_PUBLIC_APP_URL", ORIGIN);
     mocks.getServerSession.mockResolvedValue({ user: { id: USER_ID } });
