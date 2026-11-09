@@ -7,6 +7,7 @@ import { registerSchema } from "@/lib/validations/auth";
 import { prisma } from "@/lib/prisma";
 import { createOneTimeToken } from "@/lib/security/tokens";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumeAuthRateLimit } from "@/lib/auth-rate-limit";
 import { getClientIp } from "@/lib/security/client-identity";
 import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 
@@ -48,6 +49,14 @@ export async function POST(request: Request) {
     const ip = getClientIp(request.headers);
 
     try {
+      const sharedIpAllowed = ip ? await consumeAuthRateLimit("register-ip:" + ip, 5) : true;
+      const sharedEmailAllowed = await consumeAuthRateLimit("register-email:" + normalizedEmail, 3);
+      if (!sharedIpAllowed || !sharedEmailAllowed) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429, headers: { "Cache-Control": "no-store" } },
+        );
+      }
       const emailLimit = await consumeRateLimit("register-email", normalizedEmail, 3, 60 * 60);
       const ipLimit = ip
         ? await consumeRateLimit("register-ip", ip, 8, 15 * 60)
@@ -70,8 +79,8 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
+        { message: "If registration can be completed, further instructions will be sent to that email address." },
+        { status: 202, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -114,13 +123,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      {
-        message: verificationSent
-          ? "Account created. Check your email for a verification link."
-          : "Account created. Email verification delivery is not available yet; you can request a new link later.",
-        user,
-      },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
+      { message: "If registration can be completed, further instructions will be sent to that email address." },
+      { status: 202, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     if (
@@ -129,8 +133,8 @@ export async function POST(request: Request) {
       isEmailUniqueConflict(error)
     ) {
       return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
+        { message: "If registration can be completed, further instructions will be sent to that email address." },
+        { status: 202, headers: { "Cache-Control": "no-store" } },
       );
     }
 
