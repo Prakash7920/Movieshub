@@ -12,11 +12,11 @@ async function requireAdmin() {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as { id?: string } | undefined;
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
-  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true, email: true } });
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
-  return { userId: sessionUser.id };
+  return { userId: sessionUser.id, actorEmail: user.email };
 }
 
 export async function GET() {
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_SAVED_PENDING", targetType: "License", targetId: saved.id, metadata: { movieId: b.movieId as string, autoUnpublished: movie.isPublished } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_SAVED_PENDING", targetType: "License", targetId: saved.id, metadata: { movieId: b.movieId as string, autoUnpublished: movie.isPublished } });
       return { kind: "SAVED" as const, license: saved };
     }, { isolationLevel: "Serializable" });
     if (licenseResult.kind === "NOT_FOUND") {
@@ -123,7 +123,7 @@ export async function PATCH(request: Request) {
           where: { id: movieId },
           data: { allowedCountries: current.allowedCountries, licenseOwner: current.owner, licenseStartDate: current.startDate, licenseExpiryDate: current.expiryDate, downloadPermission: false },
         });
-        await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReferenceRecorded: true } });
+        await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReferenceRecorded: true } });
         return { kind: "UPDATED" as const, status: result.status };
       }, { isolationLevel: "Serializable" });
       if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
@@ -153,7 +153,7 @@ export async function PATCH(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
-      await writeAdminAuditLog(tx, { actorUserId: auth.userId, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, rejectionReasonRecorded: true, autoUnpublished: Boolean(movie?.isPublished) } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, rejectionReasonRecorded: true, autoUnpublished: Boolean(movie?.isPublished) } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
