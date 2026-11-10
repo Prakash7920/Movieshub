@@ -52,7 +52,7 @@ def main() -> None:
 
     normalized: list[str] = []
     for raw in paths:
-        if "\\\\" in raw or ":" in raw:
+        if "\\" in raw or ":" in raw:
             fail(f"unsupported path syntax: {raw}")
         path = PurePosixPath(raw)
         if path.is_absolute() or ".." in path.parts or str(path) in ("", "."):
