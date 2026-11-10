@@ -12,6 +12,13 @@ export const runtime = "nodejs";
 const requestSchema = z.object({ email: z.string().email().max(254) });
 const genericMessage = "If an account exists for that email, a password reset link will be sent.";
 
+function genericResponse() {
+  return NextResponse.json({ message: genericMessage }, {
+    status: 202,
+    headers: { "Cache-Control": "no-store, max-age=0" },
+  });
+}
+
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
@@ -33,7 +40,7 @@ export async function POST(request: Request) {
       ? await consumeRateLimit("password-reset-ip", ip, 10, 60 * 60)
       : { allowed: true };
     if (!emailLimit.allowed || !ipLimit.allowed) {
-      return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
+      return genericResponse();
     }
 
     const user = await prisma.user.findUnique({
@@ -42,12 +49,18 @@ export async function POST(request: Request) {
     });
 
     if (!user || !user.passwordHash || user.provider !== "CREDENTIALS") {
-      return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
+      return genericResponse();
     }
+
+    const windowStart = new Date(Date.now() - 60 * 60 * 1000);
+    const recentRequests = await prisma.passwordResetToken.count({
+      where: { userId: user.id, createdAt: { gte: windowStart } },
+    });
+    if (recentRequests >= 3) return genericResponse();
 
     const appUrl = getPublicAppUrl();
     if (!appUrl || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
-      return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
+      return genericResponse();
     }
 
     const oneTimeToken = createOneTimeToken();
@@ -71,8 +84,8 @@ export async function POST(request: Request) {
       await prisma.passwordResetToken.deleteMany({ where: { tokenHash: oneTimeToken.tokenHash } });
     }
 
-    return NextResponse.json({ message: genericMessage }, { status: 202, headers: { "Cache-Control": "no-store" } });
+    return genericResponse();
   } catch {
-    return NextResponse.json({ error: "Unable to process your request right now." }, { status: 503 });
+    return genericResponse();
   }
 }

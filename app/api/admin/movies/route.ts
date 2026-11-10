@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth/next";
 import { Prisma, ContentStatus, MovieType } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
+import { writeAdminAuditLog } from "@/lib/security/admin-audit-log";
 
 export const runtime = "nodejs";
 
@@ -54,9 +55,9 @@ async function requireAdmin(request: Request) {
   } catch {
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
-  let user: { role: string; isBanned: boolean } | null;
+  let user: { role: string; isBanned: boolean; email: string } | null;
   try {
-    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true, email: true } });
   } catch (error) {
     logSafeError("Admin authorization lookup failed", error);
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
@@ -64,7 +65,7 @@ async function requireAdmin(request: Request) {
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
-  return { userId: sessionUser.id };
+  return { userId: sessionUser.id, actorEmail: user.email };
 }
 
 export async function GET(request: Request) {
@@ -141,7 +142,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Allowed countries must be valid two-letter ISO country codes." }, { status: 400 });
     }
 
-    const movie = await prisma.movie.create({
+    const movie = await prisma.$transaction(async (tx) => {
+      const created = await tx.movie.create({
       data: {
         titleEn: (b.titleEn as string).trim().slice(0, 160), titleTa: (b.titleTa as string).trim().slice(0, 160), slug,
         descriptionEn: (b.descriptionEn as string).trim().slice(0, 5000), descriptionTa: (b.descriptionTa as string).trim().slice(0, 5000),
@@ -156,6 +158,9 @@ export async function POST(request: Request) {
         genres: { create: { genre: { connectOrCreate: { where: { slug: genreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }, create: { name: genreName, slug: genreName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") } } } } },
       },
       select: { id: true, slug: true, titleEn: true },
+      });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_CREATED", targetType: "Movie", targetId: created.id, metadata: { slug: created.slug } });
+      return created;
     });
     return NextResponse.json({ message: "Movie saved as draft. Publish it after reviewing metadata and rights.", movie }, { status: 201 });
   } catch (error) {
@@ -193,11 +198,13 @@ export async function PATCH(request: Request) {
           throw new Error("LICENCE_NOT_PUBLISHABLE");
         }
       }
-      return tx.movie.update({
+      const updated = await tx.movie.update({
         where: { id: b.id as string },
         data: { isPublished: b.publish as boolean, contentStatus: b.publish ? ContentStatus.PUBLISHED : ContentStatus.UNPUBLISHED },
         select: { id: true, isPublished: true, contentStatus: true },
       });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: b.publish ? "MOVIE_PUBLISHED" : "MOVIE_UNPUBLISHED", targetType: "Movie", targetId: updated.id });
+      return updated;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (!updated) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
     return NextResponse.json({ message: b.publish ? "Movie published." : "Movie unpublished.", movie: updated });
@@ -257,6 +264,7 @@ export async function PUT(request: Request) {
         language, releaseYear, runtimeMinutes, ageRating: (b.ageRating as string).trim().slice(0,20), rating,
         genres: { deleteMany: {}, create: { genre: { connectOrCreate: { where: { slug: genreSlug }, create: { name: genreName, slug: genreSlug } } } } },
       } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_UPDATED", targetType: "Movie", targetId: b.id as string, metadata: { slug } });
       return "UPDATED" as const;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (updateResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
@@ -287,6 +295,7 @@ export async function DELETE(request: Request) {
       if (!existing) return "NOT_FOUND" as const;
       if (existing.isPublished || existing.contentStatus !== ContentStatus.DRAFT) return "NOT_DRAFT" as const;
       await tx.movie.delete({ where: { id } });
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "MOVIE_DRAFT_DELETED", targetType: "Movie", targetId: id });
       return "DELETED" as const;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (deleteResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
