@@ -1,0 +1,57 @@
+name: NexaFilm Agent Foundation — Manual Contract Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: "Unique task ID (for example AI-01)"
+        required: true
+        type: string
+      objective:
+        description: "Short, explicit task objective"
+        required: true
+        type: string
+      allowed_paths:
+        description: "One repository-relative path per line; no wildcards"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nexafilm-agent-foundation
+  cancel-in-progress: false
+
+jobs:
+  validate-task-contract:
+    if: github.ref == 'refs/heads/feature/nexafilm-agent-foundation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout approved foundation branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/nexafilm-agent-foundation
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate task contract and create evidence
+        env:
+          TASK_ID: ${{ inputs.task_id }}
+          OBJECTIVE: ${{ inputs.objective }}
+          ALLOWED_PATHS: ${{ inputs.allowed_paths }}
+        run: python scripts/agent_task_contract.py
+
+      - name: Upload contract and checkpoint evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexafilm-agent-evidence-${{ inputs.task_id }}
+          path: agent-evidence/
+          if-no-files-found: error
+          retention-days: 14
