@@ -16,7 +16,8 @@ TASK_ID = re.compile(r"^[A-Z0-9][A-Z0-9._-]{2,63}$")
 MAX_OBJECTIVE = 1200
 MAX_PATHS = 20
 PROTECTED_PREFIXES = (
-    ".github/workflows/",
+    ".github/",
+    ".git/",
     "prisma/migrations/",
     "node_modules/",
     ".next/",
@@ -51,11 +52,18 @@ def main() -> None:
 
     normalized: list[str] = []
     for raw in paths:
+        if "\\\\" in raw or ":" in raw:
+            fail(f"unsupported path syntax: {raw}")
         path = PurePosixPath(raw)
         if path.is_absolute() or ".." in path.parts or str(path) in ("", "."):
             fail(f"unsafe path: {raw}")
         value = path.as_posix()
-        if value in PROTECTED_FILES or value.startswith(PROTECTED_PREFIXES):
+        parts = path.parts
+        protected = value in PROTECTED_FILES or any(
+            parts[: len(PurePosixPath(prefix).parts)] == PurePosixPath(prefix).parts
+            for prefix in PROTECTED_PREFIXES
+        )
+        if protected:
             fail(f"path is protected from agent writes: {value}")
         if value.startswith(".env") or "/.env" in value:
             fail(f"environment files are never allowed: {value}")
