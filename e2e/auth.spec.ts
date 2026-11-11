@@ -548,6 +548,16 @@ test("private collection APIs enforce bounded pagination and authenticated rate 
   const validBody = await validPagination.json();
   expect(validBody.pagination).toMatchObject({ page: 100, pageSize: 50 });
 
+  await page.locator('header button[aria-label="Logout"]').click();
+  await expect(page).toHaveURL("/");
+  const throttleEmail = `api-throttle-${Date.now()}@movieshub-e2e.test`;
+  await createUser(throttleEmail);
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(throttleEmail);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
   let lastResponse;
   for (let attempt = 0; attempt < 91; attempt += 1) {
     lastResponse = await page.request.get("/api/watchlist", {
