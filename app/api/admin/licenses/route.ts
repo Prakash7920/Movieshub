@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/prisma";
+import { writeAdminAuditLog } from "@/lib/security/admin-audit-log";
 
 export const runtime = "nodejs";
 
@@ -45,9 +46,9 @@ async function requireAdmin(request: Request) {
   } catch {
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
   }
-  let user: { role: string; isBanned: boolean } | null;
+  let user: { role: string; isBanned: boolean; email: string } | null;
   try {
-    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true, email: true } });
   } catch (error) {
     logSafeError("Admin authorization lookup failed", error);
     return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
@@ -55,18 +56,31 @@ async function requireAdmin(request: Request) {
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
-  return { userId: sessionUser.id };
+  return { userId: sessionUser.id, actorEmail: user.email };
 }
 
 export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
+    const params = new URL(request.url).searchParams;
+    const requestedPage = Number(params.get("page") ?? "1");
+    const requestedPageSize = Number(params.get("pageSize") ?? "20");
+    const pageSize = Number.isFinite(requestedPageSize) ? Math.min(50, Math.max(1, Math.trunc(requestedPageSize))) : 20;
+    const requestedPageNumber = Number.isFinite(requestedPage) ? Math.max(1, Math.trunc(requestedPage)) : 1;
+    const totalItems = await prisma.movie.count();
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const page = totalPages === 0 ? 1 : Math.min(requestedPageNumber, totalPages);
     const movies = await prisma.movie.findMany({
-      orderBy: { titleEn: "asc" },
+      orderBy: [{ titleEn: "asc" }, { id: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
     });
-    return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+    return NextResponse.json({
+      movies,
+      pagination: { page, pageSize, totalItems, totalPages, hasPreviousPage: page > 1, hasNextPage: page < totalPages },
+    }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     logSafeError("Admin licence list failed", error);
     return NextResponse.json({ error: "Unable to load licence records." }, { status: 503 });
@@ -118,6 +132,7 @@ export async function POST(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_SAVED_PENDING", targetType: "License", targetId: saved.id, metadata: { movieId: b.movieId as string, autoUnpublished: movie.isPublished } });
       return { kind: "SAVED" as const, license: saved };
     }, { isolationLevel: "Serializable" });
     if (licenseResult.kind === "NOT_FOUND") {
@@ -174,6 +189,7 @@ export async function PATCH(request: Request) {
           where: { id: movieId },
           data: { allowedCountries: current.allowedCountries, licenseOwner: current.owner, licenseStartDate: current.startDate, licenseExpiryDate: current.expiryDate, downloadPermission: false },
         });
+        await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_APPROVED", targetType: "License", targetId: result.id, metadata: { movieId, agreementReferenceRecorded: true } });
         return { kind: "UPDATED" as const, status: result.status };
       }, { isolationLevel: "Serializable" });
       if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
@@ -203,6 +219,7 @@ export async function PATCH(request: Request) {
           data: { isPublished: false, contentStatus: ContentStatus.UNPUBLISHED },
         });
       }
+      await writeAdminAuditLog(tx, { actorUserId: auth.userId, actorEmail: auth.actorEmail, action: "LICENSE_REJECTED", targetType: "License", targetId: current.id, metadata: { movieId, rejectionReasonRecorded: true, autoUnpublished: Boolean(movie?.isPublished) } });
       return true;
     }, { isolationLevel: "Serializable" });
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });

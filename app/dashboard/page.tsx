@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     <div className="page-shell pb-16 pt-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-red-200">MoviesHub preview</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-red-200">NexaFilm preview</p>
           <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">My Dashboard</h1>
           <p className="mt-2 text-sm text-gray-400">Your movie library synced to your account.</p>
         </div>

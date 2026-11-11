@@ -5,6 +5,7 @@ import { createOneTimeToken } from "../lib/security/tokens";
 
 const prisma = new PrismaClient();
 const testPassword = "MoviesHub-Test-Password-2026!";
+const genericRegistrationMessage = "If registration can be completed with these details, it has been processed.";
 let isolatedDatabaseValidated = false;
 
 function requireIsolatedTestDatabase() {
@@ -68,7 +69,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
   await inputs.nth(3).fill(testPassword);
   await page.getByRole("button", { name: "Create account" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Account created");
+  await expect(page.getByRole("status")).toContainText(genericRegistrationMessage);
   await expect.poll(async () => {
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } });
     return user?.role;
@@ -197,15 +198,14 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
 
   const userEmail = `ordinary-${Date.now()}@movieshub-e2e.test`;
   const ordinary = await createUser(userEmail);
+  const escalationEmail = `escalation-${Date.now()}@movieshub-e2e.test`;
   const response = await page.request.post("/api/auth/register", {
     headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
-    data: { name: "Escalation", email: `escalation-${Date.now()}@movieshub-e2e.test`, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
+    data: { name: "Escalation", email: escalationEmail, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
   });
-  expect(response.status()).toBe(201);
-  const payload = await response.json();
-  expect(payload.user).not.toHaveProperty("passwordHash");
-  expect(payload.user).not.toHaveProperty("passwordResetTokens");
-  const created = await prisma.user.findUnique({ where: { id: payload.user.id }, select: { role: true } });
+  expect(response.status()).toBe(202);
+  expect((await response.json()).message).toContain(genericRegistrationMessage);
+  const created = await prisma.user.findUnique({ where: { email: escalationEmail }, select: { role: true } });
   expect(created?.role).toBe("USER");
 
   await page.goto("/auth/login");
@@ -495,9 +495,9 @@ test("registration throttling returns 429 after the configured email window", as
   const second = await page.request.post("/api/auth/register", { headers, data });
   const third = await page.request.post("/api/auth/register", { headers, data });
   const fourth = await page.request.post("/api/auth/register", { headers, data });
-  expect(first.status()).toBe(201);
-  expect(second.status()).toBe(409);
-  expect(third.status()).toBe(409);
+  expect(first.status()).toBe(202);
+  expect(second.status()).toBe(202);
+  expect(third.status()).toBe(202);
   expect(fourth.status()).toBe(429);
   expect(fourth.headers()["retry-after"]).toBeTruthy();
 });
@@ -514,4 +514,58 @@ test("password reset requests do not reveal whether an email exists", async ({ p
   expect(known.status()).toBe(202);
   expect(unknown.status()).toBe(202);
   expect(await known.json()).toEqual(await unknown.json());
+});
+
+
+test("private collection APIs enforce bounded pagination and authenticated rate limits", async ({ page }) => {
+  const email = `api-hardening-${Date.now()}@movieshub-e2e.test`;
+  await createUser(email);
+
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  const countryHeaders = { "x-vercel-ip-country": "IN" };
+  for (const [endpoint, query] of [
+    ["/api/watchlist", "?page=101"],
+    ["/api/watchlist", "?page=1&pageSize=51"],
+    ["/api/watchlist", "?page=1.5"],
+    ["/api/watch-history", "?page=10000"],
+    ["/api/watch-history", "?page=abc"],
+    ["/api/watch-history", "?pageSize=0"],
+  ]) {
+    const response = await page.request.get(`${endpoint}${query}`, { headers: countryHeaders });
+    expect(response.status(), `${endpoint}${query}`).toBe(400);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  }
+
+  const validPagination = await page.request.get("/api/watchlist?page=100&pageSize=50", {
+    headers: countryHeaders,
+  });
+  expect(validPagination.status()).toBe(200);
+  const validBody = await validPagination.json();
+  expect(validBody.pagination).toMatchObject({ page: 100, pageSize: 50 });
+
+  await page.locator('header button[aria-label="Logout"]').click();
+  await expect(page).toHaveURL("/");
+  const throttleEmail = `api-throttle-${Date.now()}@movieshub-e2e.test`;
+  await createUser(throttleEmail);
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(throttleEmail);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  let lastResponse;
+  for (let attempt = 0; attempt < 91; attempt += 1) {
+    lastResponse = await page.request.get("/api/watchlist", {
+      headers: { ...countryHeaders, "x-real-ip": "203.0.113.91" },
+    });
+    if (attempt < 90) expect(lastResponse.status(), `request ${attempt + 1}`).toBe(200);
+  }
+  expect(lastResponse?.status()).toBe(429);
+  expect(Number(lastResponse?.headers()["retry-after"])).toBeGreaterThan(0);
+  expect(lastResponse?.headers()["cache-control"]).toContain("no-store");
 });

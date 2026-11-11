@@ -1,8 +1,21 @@
-
 import { z } from "zod";
 
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const isProduction = nodeEnv === "production";
+
+const isAllowedCiHttpUrl = (value: string) => {
+  if (process.env.CI !== "true") return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+};
 
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
@@ -28,7 +41,6 @@ const baseEnvSchema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 
   MEDIA_SIGNING_SECRET: z.string().optional(),
-
   AI_API_KEY: z.string().optional(),
 
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
@@ -41,46 +53,57 @@ const baseEnvSchema = z.object({
   DEMO_MODE: z
     .enum(["true", "false", ""])
     .optional()
-    .transform((value) => {
-      if (value === undefined) {
-        return !isProduction;
-      }
-
-      return value === "true";
-    }),
+    .transform((value) => value === undefined ? !isProduction : value === "true"),
 });
 
-const parsedEnv = baseEnvSchema.safeParse(process.env);
+const productionEnvSchema = baseEnvSchema.superRefine((value, context) => {
+  const required = ["DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"] as const;
+
+  for (const key of required) {
+    if (!value[key]) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: "Required in production.",
+      });
+    }
+  }
+
+  if (value.NEXTAUTH_URL && !value.NEXTAUTH_URL.startsWith("https://") && !isAllowedCiHttpUrl(value.NEXTAUTH_URL)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["NEXTAUTH_URL"],
+      message: "Must use HTTPS in production.",
+    });
+  }
+
+  if (value.NEXT_PUBLIC_APP_URL && !value.NEXT_PUBLIC_APP_URL.startsWith("https://") && !isAllowedCiHttpUrl(value.NEXT_PUBLIC_APP_URL)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["NEXT_PUBLIC_APP_URL"],
+      message: "Must use HTTPS in production.",
+    });
+  }
+});
+
+const parsedEnv = (isProduction ? productionEnvSchema : baseEnvSchema).safeParse(process.env);
 
 if (!parsedEnv.success) {
   throw new Error(
     `Invalid server environment configuration: ${parsedEnv.error.issues
-      .map(
-        (issue) =>
-          `${issue.path.join(".") || "value"}: ${issue.message}`
-      )
+      .map((issue) => `${issue.path.join(".") || "value"}: ${issue.message}`)
       .join(", ")}`
   );
 }
 
 const env = {
   ...parsedEnv.data,
-
   NODE_ENV: nodeEnv,
-
-  NEXTAUTH_URL:
-    parsedEnv.data.NEXTAUTH_URL ??
-    "http://localhost:3000",
-
-  NEXT_PUBLIC_APP_URL:
-    parsedEnv.data.NEXT_PUBLIC_APP_URL ??
-    "http://localhost:3000",
+  NEXTAUTH_URL: parsedEnv.data.NEXTAUTH_URL ?? "http://localhost:3000",
+  NEXT_PUBLIC_APP_URL: parsedEnv.data.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
 };
 
 export const isProductionEnv = isProduction;
-
 export const isDemoModeEnabled = env.DEMO_MODE;
-
 export { env };
-
 export default env;

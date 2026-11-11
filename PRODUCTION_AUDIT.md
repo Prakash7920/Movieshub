@@ -1,7 +1,7 @@
-# MoviesHub Production Audit
+# NexaFilm Production Audit
 
 ## Executive summary
-MoviesHub is a polished demo OTT front-end with a strong visual design and a reasonably complete Prisma schema, but it is not yet production-ready. The app has many demo/mock flows and several auth, admin, payment, storage, and access-control gaps that must be addressed before deployment.
+NexaFilm is a polished demo OTT front-end with a strong visual design and a reasonably complete Prisma schema, but it is not yet production-ready. The app has many demo/mock flows and several auth, admin, payment, storage, and access-control gaps that must be addressed before deployment.
 
 ## Scope reviewed
 - app routes and pages

@@ -7,8 +7,8 @@ export const languageLabels: Record<Language, string> = {
 
 const translations = {
   en: {
-    brand: "MoviesHub",
-    tagline: "Your world of cinema",
+    brand: "NexaFilm",
+    tagline: "One Platform. Every Language.",
     home: "Home",
     movies: "Movies",
     dashboard: "Dashboard",
@@ -17,8 +17,8 @@ const translations = {
     login: "Login",
   },
   ta: {
-    brand: "MoviesHub",
-    tagline: "உங்கள் சினிமா உலகம்",
+    brand: "NexaFilm",
+    tagline: "ஒரே தளம். அனைத்து மொழிகளிலும்.",
     home: "முகப்பு",
     movies: "திரைப்படங்கள்",
     dashboard: "டாஷ்போர்டு",

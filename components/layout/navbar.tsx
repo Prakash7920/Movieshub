@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { getSession, signOut } from "next-auth/react";
 import { Film, Home, LayoutDashboard, ShieldCheck, Sparkles, LogOut } from "lucide-react";
@@ -46,7 +47,11 @@ export function Navbar() {
       if (!response.ok && response.status !== 401) {
         throw new Error("Secure logout could not be completed.");
       }
-      await signOut({ callbackUrl: "/" });
+
+      // Do not let NextAuth resolve "/" against a stale canonical NEXTAUTH_URL.
+      // Clear the session without redirecting, then navigate on this exact host.
+      await signOut({ redirect: false });
+      window.location.assign("/");
     } catch {
       setIsSigningOut(false);
       setLogoutError("Secure logout could not be completed. Please try again.");
@@ -56,12 +61,15 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-xl">
       <div className="page-shell flex items-center justify-between gap-2 py-3">
-        <Link href="/" className="flex min-w-0 shrink items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-600 font-bold text-white">M</div>
-          <div>
-            <div className="truncate text-sm font-semibold text-white sm:text-base">{t.brand}</div>
-            <div className="hidden text-[10px] uppercase tracking-[0.2em] text-gray-400 sm:block">{t.tagline}</div>
-          </div>
+        <Link href="/" aria-label="NexaFilm home" className="flex min-w-0 shrink items-center gap-2">
+          <Image
+            src="/nexafilm-logo.svg"
+            alt="NexaFilm — One Platform. Every Language. Endless Stories."
+            width={210}
+            height={53}
+            priority
+            className="h-auto w-[128px] shrink-0 sm:w-[170px] lg:w-[190px]"
+          />
         </Link>
         <nav className="hidden items-center gap-2 md:flex">
           {navItems.map(({ href, labelKey, icon: Icon }) => (

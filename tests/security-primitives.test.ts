@@ -5,6 +5,7 @@ import { getClientIp } from "../lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "../lib/security/request-guards";
 import { getVercelViewerCountry } from "../lib/licensing/territory";
 import { getSessionRevocationId } from "../lib/security/session-revocation";
+import { parseBoundedPagination } from "../lib/security/pagination";
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();
@@ -55,11 +56,29 @@ test("state-changing API requests require a same-origin source", () => {
     method: "POST",
     headers: { origin: "https://attacker.example" },
   });
+  // Vercel Preview hostnames are unique and intentionally differ from NEXTAUTH_URL.
+  const previewOrigin = "https://nexafilm-preview-123.vercel.app";
+  const previewRequest = new Request(`${previewOrigin}/api/auth/revoke-session`, {
+    method: "POST",
+    headers: { origin: previewOrigin },
+  });
+  // Next.js can expose an internal URL while preserving the browser-facing Host.
+  const proxiedLocalRequest = new Request("http://localhost:3000/api/auth/register", {
+    method: "POST",
+    headers: { origin: "http://127.0.0.1:3000", host: "127.0.0.1:3000" },
+  });
+  const foreignHostRequest = new Request("http://localhost:3000/api/auth/register", {
+    method: "POST",
+    headers: { origin: "http://attacker.example", host: "127.0.0.1:3000" },
+  });
   const missingOrigin = new Request(`${expectedOrigin}/api/auth/register`, { method: "POST" });
 
   assert.equal(isSameOriginRequest(sameOrigin), true);
   assert.equal(isSameOriginRequest(sameOriginReferer), true);
+  assert.equal(isSameOriginRequest(previewRequest), true);
+  assert.equal(isSameOriginRequest(proxiedLocalRequest), true);
   assert.equal(isSameOriginRequest(foreignOrigin), false);
+  assert.equal(isSameOriginRequest(foreignHostRequest), false);
   assert.equal(isSameOriginRequest(missingOrigin), false);
 });
 
@@ -102,4 +121,17 @@ test("session revocation IDs are stable and prefer the JWT identifier", () => {
   assert.equal(first, second);
   assert.notEqual(first, different);
   assert.equal(getSessionRevocationId({ sub: "user-1" }), null);
+});
+
+
+test("private API pagination accepts bounded values and rejects unsafe offsets", () => {
+  assert.deepEqual(parseBoundedPagination(new URLSearchParams()), {
+    page: 1, pageSize: 20, skip: 0, take: 20,
+  });
+  assert.deepEqual(parseBoundedPagination(new URLSearchParams("page=100&pageSize=50")), {
+    page: 100, pageSize: 50, skip: 4950, take: 50,
+  });
+  for (const query of ["page=101", "page=10000", "page=0", "page=-1", "page=1.5", "page=abc", "pageSize=51", "pageSize=0", "pageSize=1e2"]) {
+    assert.equal(parseBoundedPagination(new URLSearchParams(query)), null, query);
+  }
 });

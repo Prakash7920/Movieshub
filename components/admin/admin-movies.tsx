@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Movie = {
   id:string; slug:string; titleEn:string; titleTa:string; descriptionEn:string; descriptionTa:string;
   language:string; releaseYear:number; runtimeMinutes:number; ageRating:string; rating:number;
   isPublished:boolean; contentStatus:string; movieType:string; posterUrl:string; backdropUrl:string; genre:string;
 };
+type Pagination={page:number;pageSize:number;totalItems:number;totalPages:number;hasPreviousPage:boolean;hasNextPage:boolean};
 type FormState = {
   titleEn:string; titleTa:string; slug:string; descriptionEn:string; descriptionTa:string;
   posterUrl:string; backdropUrl:string; language:string; genre:string;
@@ -16,6 +17,7 @@ const initial:FormState={titleEn:"",titleTa:"",slug:"",descriptionEn:"",descript
 
 export default function AdminMovies(){
  const [movies,setMovies]=useState<Movie[]>([]);
+ const [pagination,setPagination]=useState<Pagination>({page:1,pageSize:20,totalItems:0,totalPages:0,hasPreviousPage:false,hasNextPage:false});
  const [form,setForm]=useState<FormState>(initial);
  const [editingId,setEditingId]=useState<string|null>(null);
  const [loading,setLoading]=useState(true);
@@ -23,17 +25,17 @@ export default function AdminMovies(){
  const [error,setError]=useState("");
  const [message,setMessage]=useState("");
 
- async function load(){
+ const load=useCallback(async(targetPage=1)=>{
   setLoading(true);
   try{
-   const r=await fetch("/api/admin/movies",{cache:"no-store"});
+   const r=await fetch(`/api/admin/movies?page=${targetPage}&pageSize=20`,{cache:"no-store"});
    const d=await r.json();
    if(!r.ok)throw new Error(d.error);
-   setMovies(d.movies);
+   setMovies(d.movies);setPagination(d.pagination);
   }catch(e){setError(e instanceof Error?e.message:"Unable to load admin catalogue.");}
   finally{setLoading(false);}
- }
- useEffect(()=>{void load();},[]);
+ },[]);
+ useEffect(()=>{void load(1);},[load]);
 
  function change(key:keyof FormState,value:string){
   setForm(current=>({...current,[key]:value,...(key==="titleEn"&&!current.slug?{slug:value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}: {})}));
@@ -56,7 +58,7 @@ export default function AdminMovies(){
   try{
    const r=await fetch("/api/admin/movies",{method:editingId?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,id:editingId??undefined,releaseYear:Number(form.releaseYear),runtimeMinutes:Number(form.runtimeMinutes),rating:Number(form.rating)})});
    const d=await r.json();if(!r.ok)throw new Error(d.error);
-   setMessage(d.message);setEditingId(null);setForm(initial);await load();
+   setMessage(d.message);setEditingId(null);setForm(initial);await load(pagination.page);
   }catch(e){setError(e instanceof Error?e.message:"Unable to save movie.");}
   finally{setBusy(false);}
  }
@@ -82,7 +84,7 @@ export default function AdminMovies(){
 
  const input="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-sm text-white placeholder:text-gray-500";
  return <main className="page-shell py-8">
-  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">MoviesHub control room</p>
+  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">NexaFilm control room</p>
   <h1 className="mt-2 text-3xl font-bold text-white">Admin · Movie Management</h1>
   <p className="mt-2 text-sm text-gray-400">New entries are saved as drafts. Publishing is blocked until an active content licence is recorded.</p>
   {error&&<p role="alert" className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
@@ -101,6 +103,7 @@ export default function AdminMovies(){
   </section>
   <section className="mt-8">
    <h2 className="text-xl font-semibold text-white">Catalogue entries</h2>
+   <p className="mt-2 text-xs text-gray-400">{pagination.totalItems} total entries · Page {pagination.page} of {Math.max(1,pagination.totalPages)}</p>
    {loading?<p className="py-8 text-gray-400">Loading...</p>:<div className="mt-4 space-y-3">
     {movies.map(m=><article key={m.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
      <div><p className="font-semibold text-white">{m.titleEn} <span className="text-xs text-gray-500">({m.language.toUpperCase()} · {m.releaseYear})</span></p><p className="mt-1 text-xs text-gray-400">{m.slug} · {m.genre} · {m.contentStatus}</p></div>
@@ -111,6 +114,11 @@ export default function AdminMovies(){
      </div>
     </article>)}
    </div>}
+   <div className="mt-4 flex items-center justify-between gap-3">
+    <button type="button" disabled={loading||busy||!pagination.hasPreviousPage} onClick={()=>void load(pagination.page-1)} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white disabled:opacity-40">Previous</button>
+    <span className="text-xs text-gray-400">{pagination.totalItems===0?"No entries":`Page ${pagination.page} / ${pagination.totalPages}`}</span>
+    <button type="button" disabled={loading||busy||!pagination.hasNextPage} onClick={()=>void load(pagination.page+1)} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white disabled:opacity-40">Next</button>
+   </div>
   </section>
  </main>;
 }

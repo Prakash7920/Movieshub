@@ -19,11 +19,13 @@ type WatchlistItem = {
   };
 };
 
-async function loadWatchlist(): Promise<WatchlistItem[]> {
-  const response = await fetch("/api/watchlist", { cache: "no-store" });
+type Pagination = { page: number; pageSize: number; totalItems: number; totalPages: number };
+
+async function loadWatchlist(page = 1): Promise<{ items: WatchlistItem[]; pagination: Pagination }> {
+  const response = await fetch(`/api/watchlist?page=${page}&pageSize=20`, { cache: "no-store" });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "Unable to load watchlist.");
-  return data.items as WatchlistItem[];
+  return { items: data.items as WatchlistItem[], pagination: data.pagination as Pagination };
 }
 
 async function saveWatchlistMovie(slug: string, saved: boolean) {
@@ -44,8 +46,12 @@ export function WatchlistToggle({ slug }: { slug: string }) {
 
   useEffect(() => {
     let active = true;
-    loadWatchlist()
-      .then((items) => { if (active) setSaved(items.some((item) => item.movie.slug === slug)); })
+    fetch(`/api/watchlist?slug=${encodeURIComponent(slug)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? "Unable to load watchlist.");
+        if (active) setSaved(Boolean(data.isSaved));
+      })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -87,22 +93,35 @@ export function WatchlistContent() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [removing, setRemoving] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
 
   useEffect(() => {
     let active = true;
-    loadWatchlist()
-      .then((result) => { if (active) setItems(result); })
+    setReady(false);
+    loadWatchlist(page)
+      .then((result) => {
+        if (active) {
+          setItems(result.items);
+          setPagination(result.pagination);
+          setError("");
+        }
+      })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
-  }, []);
+  }, [page]);
 
   async function remove(slug: string) {
     setRemoving(slug);
     setError("");
     try {
       await saveWatchlistMovie(slug, false);
-      setItems((current) => current.filter((item) => item.movie.slug !== slug));
+      if (items.length === 1 && page > 1) setPage((current) => current - 1);
+      else {
+        setItems((current) => current.filter((item) => item.movie.slug !== slug));
+        setPagination((current) => ({ ...current, totalItems: Math.max(0, current.totalItems - 1) }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to remove this movie.");
     } finally {
@@ -145,6 +164,15 @@ export function WatchlistContent() {
           </article>
         ))}
       </div>
+      {pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <p className="text-xs text-gray-400">Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} saved</p>
+          <div className="flex gap-2">
+            <button type="button" disabled={page <= 1 || !ready} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-full border border-white/15 px-4 py-2 text-xs text-white disabled:opacity-40">Previous</button>
+            <button type="button" disabled={page >= pagination.totalPages || !ready} onClick={() => setPage((current) => current + 1)} className="rounded-full border border-white/15 px-4 py-2 text-xs text-white disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, phase-3-production-validation-security, brand/nexafilm-rebrand]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -36,7 +36,6 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       DEMO_MODE: "false"
       REQUIRE_EMAIL_VERIFICATION: "false"
-      MOVIESHUB_E2E: "true"
       CI: "true"
     steps:
       - name: Checkout repository
@@ -70,6 +69,8 @@ jobs:
 
       - name: Database security integration tests
         run: npm run test:integration
+        env:
+          MOVIESHUB_E2E: "true"
 
       - name: Build Next.js application
         run: npm run build
@@ -79,3 +80,5 @@ jobs:
 
       - name: Browser authentication and security tests
         run: npm run test:e2e
+        env:
+          MOVIESHUB_E2E: "true"

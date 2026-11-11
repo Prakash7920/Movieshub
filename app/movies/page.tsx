@@ -43,9 +43,9 @@ export default function MoviesPage() {
   return (
     <div className="page-shell py-8 sm:py-10">
       <div className="mb-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">MoviesHub catalogue</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">NexaFilm catalogue</p>
         <h1 className="mt-3 text-3xl font-bold text-white md:text-5xl">Explore movies</h1>
-        <p className="mt-3 max-w-2xl text-sm text-gray-400 sm:text-base">Browse published catalogue metadata from MoviesHub. Playback remains disabled until distribution rights are verified.</p>
+        <p className="mt-3 max-w-2xl text-sm text-gray-400 sm:text-base">Browse published catalogue metadata from NexaFilm. Playback remains disabled until distribution rights are verified.</p>
       </div>
       <section className="mb-7 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">

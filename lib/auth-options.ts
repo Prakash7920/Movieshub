@@ -7,12 +7,24 @@ import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { logSafeError } from "@/lib/security/safe-log";
 import { getSessionRevocationId } from "@/lib/security/session-revocation";
 
+/**
+ * Preview-only authentication diagnostics.
+ * These records deliberately exclude email, password, password hash, IP,
+ * user ID, request headers, tokens, and provider response data.
+ */
+function authDiagnostic(stage: string, details: Record<string, string | number | boolean>): void {
+  if (process.env.VERCEL_ENV === "preview") {
+    console.info("[AUTH_DIAGNOSTIC]", { stage, ...details });
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  // HTTPS for deployed environments; allow the explicit local E2E test override.
   useSecureCookies: process.env.MOVIESHUB_E2E === "true"
     ? false
     : process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://") === true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   pages: { signIn: "/auth/login" },
   providers: [
     CredentialsProvider({
@@ -24,7 +36,10 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, req) {
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
-        if (!email || email.length > 254 || !password || password.length > 128) return null;
+        if (!email || email.length > 254 || !password || password.length > 128) {
+          authDiagnostic("input_rejected", { validEmailShape: Boolean(email && email.length <= 254), passwordPresent: Boolean(password), passwordWithinLimit: Boolean(password && password.length <= 128) });
+          return null;
+        }
 
         try {
           const emailLimit = await consumeRateLimit("login-email", email, 10, 15 * 60);
@@ -39,17 +54,64 @@ export const authOptions: NextAuthOptions = {
           const ipLimit = ip
             ? await consumeRateLimit("login-ip", ip, 30, 15 * 60)
             : { allowed: true };
-          if (!emailLimit.allowed || !ipLimit.allowed) return null;
-        } catch {
+          authDiagnostic("rate_limit_checked", {
+            emailAllowed: emailLimit.allowed,
+            ipAllowed: ipLimit.allowed,
+            ipLimitApplied: Boolean(ip),
+          });
+          if (!emailLimit.allowed || !ipLimit.allowed) {
+            authDiagnostic("login_rejected", { reason: "rate_limit" });
+            return null;
+          }
+        } catch (error) {
+          logSafeError("Login rate-limit check failed", error);
+          authDiagnostic("login_rejected", { reason: "rate_limit_service_error" });
           // Fail closed when the shared limiter is unavailable.
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || user.isBanned || !user.passwordHash) return null;
-        if (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !user.isEmailVerified) return null;
-        const validPassword = await bcrypt.compare(password, user.passwordHash);
-        if (!validPassword) return null;
+        let user;
+        try {
+          user = await prisma.user.findUnique({ where: { email } });
+        } catch (error) {
+          logSafeError("Login account lookup failed", error);
+          authDiagnostic("login_rejected", { reason: "database_lookup_error" });
+          return null;
+        }
+
+        if (!user) {
+          authDiagnostic("login_rejected", { reason: "account_not_found" });
+          return null;
+        }
+        if (user.isBanned) {
+          authDiagnostic("login_rejected", { reason: "account_banned" });
+          return null;
+        }
+        if (!user.passwordHash) {
+          authDiagnostic("login_rejected", { reason: "password_hash_missing", provider: user.provider });
+          return null;
+        }
+        const verificationRequired = process.env.REQUIRE_EMAIL_VERIFICATION === "true";
+        if (verificationRequired && !user.isEmailVerified) {
+          authDiagnostic("login_rejected", { reason: "email_not_verified", verificationRequired: true });
+          return null;
+        }
+
+        let validPassword = false;
+        try {
+          validPassword = await bcrypt.compare(password, user.passwordHash);
+        } catch (error) {
+          logSafeError("Login password comparison failed", error);
+          authDiagnostic("login_rejected", { reason: "password_compare_error" });
+          return null;
+        }
+        authDiagnostic("password_checked", { validPassword });
+        if (!validPassword) {
+          authDiagnostic("login_rejected", { reason: "password_mismatch" });
+          return null;
+        }
+
+        authDiagnostic("login_authorized", { role: user.role, verificationRequired, emailVerified: user.isEmailVerified });
         return { id: user.id, name: user.name, email: user.email, image: user.avatarUrl };
       },
     }),

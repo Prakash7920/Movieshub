@@ -3,12 +3,12 @@ import { logSafeError } from "@/lib/security/safe-log";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
-import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumePrivateApiRateLimit } from "@/lib/security/private-api-rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const sessionUser = session?.user as { id?: string } | undefined;
 
@@ -20,7 +20,18 @@ export async function GET() {
   }
 
   try {
-    const limit = await consumeRateLimit("subscription-status-user", sessionUser.id, 60, 60);
+    const limit = await consumePrivateApiRateLimit(request, sessionUser.id, {
+      userScope: "subscription-status-user",
+      userLimit: 60,
+      ipScope: "subscription-status-ip",
+      ipLimit: 180,
+    });
+    if (!limit.available) {
+      return NextResponse.json({ error: "Subscription information is temporarily unavailable." }, {
+        status: 503,
+        headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+      });
+    }
     if (!limit.allowed) {
       return NextResponse.json({ error: "Too many subscription requests. Please try again shortly." }, {
         status: 429,

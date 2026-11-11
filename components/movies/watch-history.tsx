@@ -19,8 +19,10 @@ type HistoryItem = {
   };
 };
 
-async function requestHistory(method: "GET" | "POST" | "DELETE", body?: { slug: string; progress?: number }) {
-  const response = await fetch("/api/watch-history", {
+type HistoryPagination = { page: number; pageSize: number; totalItems: number; totalPages: number };
+
+async function requestHistory(method: "GET" | "POST" | "DELETE", body?: { slug: string; progress?: number }, page = 1) {
+  const response = await fetch(method === "GET" ? `/api/watch-history?page=${page}&pageSize=20` : "/api/watch-history", {
     method,
     cache: "no-store",
     headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -67,22 +69,35 @@ export function WatchHistoryContent() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [removing, setRemoving] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<HistoryPagination>({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
 
   useEffect(() => {
     let active = true;
-    requestHistory("GET")
-      .then((data) => { if (active) setItems(data.items as HistoryItem[]); })
+    setReady(false);
+    requestHistory("GET", undefined, page)
+      .then((data) => {
+        if (active) {
+          setItems(data.items as HistoryItem[]);
+          setPagination(data.pagination as HistoryPagination);
+          setError("");
+        }
+      })
       .catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setReady(true); });
     return () => { active = false; };
-  }, []);
+  }, [page]);
 
   async function remove(slug: string) {
     setRemoving(slug);
     setError("");
     try {
       await requestHistory("DELETE", { slug });
-      setItems((current) => current.filter((item) => item.movie.slug !== slug));
+      if (items.length === 1 && page > 1) setPage((current) => current - 1);
+      else {
+        setItems((current) => current.filter((item) => item.movie.slug !== slug));
+        setPagination((current) => ({ ...current, totalItems: Math.max(0, current.totalItems - 1) }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to remove history entry.");
     } finally {
@@ -126,6 +141,15 @@ export function WatchHistoryContent() {
           </button>
         </article>
       ))}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-gray-400">Page {pagination.page} of {pagination.totalPages} · {pagination.totalItems} entries</p>
+          <div className="flex gap-2">
+            <button type="button" disabled={page <= 1 || !ready} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-full border border-white/15 px-4 py-2 text-xs text-white disabled:opacity-40">Previous</button>
+            <button type="button" disabled={page >= pagination.totalPages || !ready} onClick={() => setPage((current) => current + 1)} className="rounded-full border border-white/15 px-4 py-2 text-xs text-white disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

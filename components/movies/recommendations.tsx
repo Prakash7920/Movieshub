@@ -47,7 +47,7 @@ export function Recommendations() {
   return (
     <section className="page-shell py-12">
       <div className="mb-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-300">MoviesHub personal picks</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-300">NexaFilm personal picks</p>
         <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Recommended for you</h1>
         <p className="mt-3 text-gray-300">Picks are based on your licensed viewing history and verified viewing territory.</p>
       </div>

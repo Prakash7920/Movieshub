@@ -5,8 +5,8 @@ import { Navbar } from "@/components/layout/navbar";
 import { LanguageProvider } from "@/components/providers/language-provider";
 
 export const metadata: Metadata = {
-  title: "MoviesHub | Your world of Tamil cinema",
-  description: "Legal OTT platform for Tamil and dubbed movies.",
+  title: "NexaFilm | One Platform. Every Language. Endless Stories.",
+  description: "Discover a premium legal streaming experience for cinema across Indian languages. Playback is available only for content with verified distribution rights.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
 };
 
