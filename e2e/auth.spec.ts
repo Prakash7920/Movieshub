@@ -515,3 +515,47 @@ test("password reset requests do not reveal whether an email exists", async ({ p
   expect(unknown.status()).toBe(202);
   expect(await known.json()).toEqual(await unknown.json());
 });
+
+
+test("private collection APIs enforce bounded pagination and authenticated rate limits", async ({ page }) => {
+  const email = `api-hardening-${Date.now()}@movieshub-e2e.test`;
+  await createUser(email);
+
+  await page.goto("/auth/login");
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(testPassword);
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+
+  const countryHeaders = { "x-vercel-ip-country": "IN" };
+  for (const [endpoint, query] of [
+    ["/api/watchlist", "?page=101"],
+    ["/api/watchlist", "?page=1&pageSize=51"],
+    ["/api/watchlist", "?page=1.5"],
+    ["/api/watch-history", "?page=10000"],
+    ["/api/watch-history", "?page=abc"],
+    ["/api/watch-history", "?pageSize=0"],
+  ]) {
+    const response = await page.request.get(`${endpoint}${query}`, { headers: countryHeaders });
+    expect(response.status(), `${endpoint}${query}`).toBe(400);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  }
+
+  const validPagination = await page.request.get("/api/watchlist?page=100&pageSize=50", {
+    headers: countryHeaders,
+  });
+  expect(validPagination.status()).toBe(200);
+  const validBody = await validPagination.json();
+  expect(validBody.pagination).toMatchObject({ page: 100, pageSize: 50 });
+
+  let lastResponse;
+  for (let attempt = 0; attempt < 91; attempt += 1) {
+    lastResponse = await page.request.get("/api/watchlist", {
+      headers: { ...countryHeaders, "x-real-ip": "203.0.113.91" },
+    });
+    if (attempt < 90) expect(lastResponse.status(), `request ${attempt + 1}`).toBe(200);
+  }
+  expect(lastResponse?.status()).toBe(429);
+  expect(Number(lastResponse?.headers()["retry-after"])).toBeGreaterThan(0);
+  expect(lastResponse?.headers()["cache-control"]).toContain("no-store");
+});
