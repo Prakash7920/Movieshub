@@ -6,7 +6,7 @@ export type Pagination = { page: number; pageSize: number; skip: number; take: n
 
 function parsePositiveInteger(value: string | null, fallback: number): number | null {
   if (value === null) return fallback;
-  if (!/^[1-9]\\d*$/.test(value)) return null;
+  if (!/^[1-9]\d*$/.test(value)) return null;
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
