@@ -8,9 +8,9 @@ export default function AdminLicenses(){
  const [movies,setMovies]=useState<MovieOption[]>([]),[form,setForm]=useState<Form>(empty),[refs,setRefs]=useState<Record<string,string>>({}),[checks,setChecks]=useState<Record<string,boolean>>({});
  const [pagination,setPagination]=useState<Pagination>({page:1,pageSize:20,totalItems:0,totalPages:0,hasPreviousPage:false,hasNextPage:false});
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- const load=useCallback(async(targetPage=pagination.page)=>{try{const r=await fetch(`/api/admin/licenses?page=${targetPage}&pageSize=20`,{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error);setMovies(d.movies);setPagination(d.pagination);if(!form.movieId&&d.movies.length)setForm(v=>({...v,movieId:d.movies[0].id}));}catch(e){setError(e instanceof Error?e.message:"Unable to load licences.");}},[form.movieId,pagination.page]);
- useEffect(()=>{void load(1);},[]);
- async function save(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");setMessage("");try{const r=await fetch("/api/admin/licenses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(!r.ok)throw new Error(d.error);setMessage(d.message);await load();}catch(e){setError(e instanceof Error?e.message:"Unable to save licence.");}finally{setBusy(false);}}
+ const load=useCallback(async(targetPage=1)=>{try{const r=await fetch(`/api/admin/licenses?page=${targetPage}&pageSize=20`,{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error);setMovies(d.movies);setPagination(d.pagination);if(d.movies.length)setForm(v=>v.movieId?v:{...v,movieId:d.movies[0].id});}catch(e){setError(e instanceof Error?e.message:"Unable to load licences.");}},[]);
+ useEffect(()=>{void load(1);},[load]);
+ async function save(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");setMessage("");try{const r=await fetch("/api/admin/licenses",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(!r.ok)throw new Error(d.error);setMessage(d.message);await load(pagination.page);}catch(e){setError(e instanceof Error?e.message:"Unable to save licence.");}finally{setBusy(false);}}
  async function review(m:MovieOption,status:"ACTIVE"|"REJECTED"){
   const agreementReference=refs[m.id]??"";
   if(status==="ACTIVE"&&(!checks[m.id]||agreementReference.trim().length<3)){setError("Add the signed agreement reference and confirm verification first.");return;}
