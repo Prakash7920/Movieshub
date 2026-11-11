@@ -140,7 +140,9 @@ export async function POST(request: Request) {
     if (!country) return countryUnavailable();
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to save movies." }, { status: 401 });
-    if (await isUserThrottled(userId)) return throttledResponse();
+    const rateLimit = await isUserThrottled(request, userId);
+    if (!rateLimit.available) return rateLimitUnavailable();
+    if (!rateLimit.allowed) return throttledResponse(rateLimit.retryAfterSeconds);
 
     const body: unknown = await request.json();
     const slug = typeof body === "object" && body !== null && "slug" in body && typeof body.slug === "string" ? body.slug.trim() : "";
