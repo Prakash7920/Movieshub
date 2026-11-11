@@ -4,6 +4,7 @@ import { getClientIp } from "@/lib/security/client-identity";
 export type PrivateApiRateLimit = {
   allowed: boolean;
   retryAfterSeconds: number;
+  available: boolean;
 };
 
 /**
@@ -23,8 +24,9 @@ export async function consumePrivateApiRateLimit(
   },
 ): Promise<PrivateApiRateLimit> {
   const windowSeconds = options.windowSeconds ?? 60;
-  const ip = getClientIp(request.headers);
-  const checks = [
+  try {
+    const ip = getClientIp(request.headers);
+    const checks = [
     consumeRateLimit(options.userScope, userId, options.userLimit, windowSeconds),
   ];
 
@@ -33,8 +35,12 @@ export async function consumePrivateApiRateLimit(
   }
 
   const results = await Promise.all(checks);
-  return {
-    allowed: results.every((result) => result.allowed),
-    retryAfterSeconds: Math.max(1, ...results.map((result) => result.retryAfterSeconds)),
-  };
+    return {
+      allowed: results.every((result) => result.allowed),
+      retryAfterSeconds: Math.max(1, ...results.map((result) => result.retryAfterSeconds)),
+      available: true,
+    };
+  } catch {
+    return { allowed: false, retryAfterSeconds: 60, available: false };
+  }
 }
