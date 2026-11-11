@@ -26,6 +26,12 @@ export async function GET(request: Request) {
       ipScope: "subscription-status-ip",
       ipLimit: 180,
     });
+    if (!limit.available) {
+      return NextResponse.json({ error: "Subscription status are temporarily unavailable." }, {
+        status: 503,
+        headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+      });
+    }
     if (!limit.allowed) {
       return NextResponse.json({ error: "Too many subscription requests. Please try again shortly." }, {
         status: 429,
