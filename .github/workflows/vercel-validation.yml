@@ -69,6 +69,8 @@ jobs:
 
       - name: Database security integration tests
         run: npm run test:integration
+        env:
+          MOVIESHUB_E2E: "true"
 
       - name: Build Next.js application
         run: npm run build
