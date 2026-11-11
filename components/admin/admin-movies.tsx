@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Movie = {
   id:string; slug:string; titleEn:string; titleTa:string; descriptionEn:string; descriptionTa:string;
@@ -25,7 +25,7 @@ export default function AdminMovies(){
  const [error,setError]=useState("");
  const [message,setMessage]=useState("");
 
- async function load(targetPage=pagination.page){
+ const load=useCallback(async(targetPage=1)=>{
   setLoading(true);
   try{
    const r=await fetch(`/api/admin/movies?page=${targetPage}&pageSize=20`,{cache:"no-store"});
@@ -34,8 +34,8 @@ export default function AdminMovies(){
    setMovies(d.movies);setPagination(d.pagination);
   }catch(e){setError(e instanceof Error?e.message:"Unable to load admin catalogue.");}
   finally{setLoading(false);}
- }
- useEffect(()=>{void load();},[]);
+ },[]);
+ useEffect(()=>{void load(1);},[load]);
 
  function change(key:keyof FormState,value:string){
   setForm(current=>({...current,[key]:value,...(key==="titleEn"&&!current.slug?{slug:value.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")}: {})}));
@@ -58,7 +58,7 @@ export default function AdminMovies(){
   try{
    const r=await fetch("/api/admin/movies",{method:editingId?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,id:editingId??undefined,releaseYear:Number(form.releaseYear),runtimeMinutes:Number(form.runtimeMinutes),rating:Number(form.rating)})});
    const d=await r.json();if(!r.ok)throw new Error(d.error);
-   setMessage(d.message);setEditingId(null);setForm(initial);await load();
+   setMessage(d.message);setEditingId(null);setForm(initial);await load(pagination.page);
   }catch(e){setError(e instanceof Error?e.message:"Unable to save movie.");}
   finally{setBusy(false);}
  }
