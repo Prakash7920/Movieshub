@@ -5,6 +5,7 @@ import { getClientIp } from "../lib/security/client-identity";
 import { hasValidJsonContentType, isSameOriginRequest } from "../lib/security/request-guards";
 import { getVercelViewerCountry } from "../lib/licensing/territory";
 import { getSessionRevocationId } from "../lib/security/session-revocation";
+import { parseBoundedPagination } from "../lib/security/pagination";
 
 test("one-time tokens are cryptographically random, fixed-length and hashable", () => {
   const first = createOneTimeToken();
@@ -120,4 +121,17 @@ test("session revocation IDs are stable and prefer the JWT identifier", () => {
   assert.equal(first, second);
   assert.notEqual(first, different);
   assert.equal(getSessionRevocationId({ sub: "user-1" }), null);
+});
+
+
+test("private API pagination accepts bounded values and rejects unsafe offsets", () => {
+  assert.deepEqual(parseBoundedPagination(new URLSearchParams()), {
+    page: 1, pageSize: 20, skip: 0, take: 20,
+  });
+  assert.deepEqual(parseBoundedPagination(new URLSearchParams("page=100&pageSize=50")), {
+    page: 100, pageSize: 50, skip: 4950, take: 50,
+  });
+  for (const query of ["page=101", "page=10000", "page=0", "page=-1", "page=1.5", "page=abc", "pageSize=51", "pageSize=0", "pageSize=1e2"]) {
+    assert.equal(parseBoundedPagination(new URLSearchParams(query)), null, query);
+  }
 });
