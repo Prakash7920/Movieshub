@@ -16,12 +16,19 @@ async function getUserId() {
   return user?.id ?? null;
 }
 
-async function isUserThrottled(request: Request, userId: string): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+async function isUserThrottled(request: Request, userId: string): Promise<{ allowed: boolean; retryAfterSeconds: number; available: boolean }> {
   return consumePrivateApiRateLimit(request, userId, {
     userScope: "watch-history-user",
     userLimit: 90,
     ipScope: "watch-history-ip",
     ipLimit: 180,
+  });
+}
+
+function rateLimitUnavailable() {
+  return NextResponse.json({ error: "This service is temporarily unavailable. Please try again shortly." }, {
+    status: 503,
+    headers: { "Retry-After": "60", "Cache-Control": "no-store" },
   });
 }
 
@@ -62,6 +69,7 @@ export async function GET(request: Request) {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to view watch history." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
     const rateLimit = await isUserThrottled(request, userId);
+    if (!rateLimit.available) return rateLimitUnavailable();
     if (!rateLimit.allowed) return throttledResponse(rateLimit.retryAfterSeconds);
 
     const { searchParams } = new URL(request.url);
