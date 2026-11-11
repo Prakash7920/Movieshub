@@ -24,17 +24,18 @@ export async function consumePrivateApiRateLimit(
   },
 ): Promise<PrivateApiRateLimit> {
   const windowSeconds = options.windowSeconds ?? 60;
+
   try {
     const ip = getClientIp(request.headers);
     const checks = [
-    consumeRateLimit(options.userScope, userId, options.userLimit, windowSeconds),
-  ];
+      consumeRateLimit(options.userScope, userId, options.userLimit, windowSeconds),
+    ];
 
-  if (ip) {
-    checks.push(consumeRateLimit(options.ipScope, ip, options.ipLimit, windowSeconds));
-  }
+    if (ip) {
+      checks.push(consumeRateLimit(options.ipScope, ip, options.ipLimit, windowSeconds));
+    }
 
-  const results = await Promise.all(checks);
+    const results = await Promise.all(checks);
     return {
       allowed: results.every((result) => result.allowed),
       retryAfterSeconds: Math.max(1, ...results.map((result) => result.retryAfterSeconds)),
