@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       ipLimit: 180,
     });
     if (!limit.available) {
-      return NextResponse.json({ error: "Subscription status are temporarily unavailable." }, {
+      return NextResponse.json({ error: "Subscription information is temporarily unavailable." }, {
         status: 503,
         headers: { "Retry-After": "60", "Cache-Control": "no-store" },
       });
