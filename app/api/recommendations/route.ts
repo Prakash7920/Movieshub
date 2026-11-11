@@ -27,6 +27,12 @@ export async function GET(request: Request) {
       ipScope: "recommendations-ip",
       ipLimit: 90,
     });
+    if (!limit.available) {
+      return NextResponse.json({ error: "Recommendations are temporarily unavailable." }, {
+        status: 503,
+        headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+      });
+    }
     if (!limit.allowed) {
       return NextResponse.json({ error: "Too many recommendation requests. Please try again shortly." }, {
         status: 429,
