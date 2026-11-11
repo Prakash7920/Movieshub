@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logSafeError } from "@/lib/security/safe-log";
-import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { consumePrivateApiRateLimit } from "@/lib/security/private-api-rate-limit";
+import { parseBoundedPagination } from "@/lib/security/pagination";
 import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-options";
@@ -15,19 +16,19 @@ async function getUserId() {
   return user?.id ?? null;
 }
 
-async function isUserThrottled(userId: string): Promise<boolean> {
-  try {
-    const result = await consumeRateLimit("private-user-api", userId, 90, 60);
-    return !result.allowed;
-  } catch {
-    return true;
-  }
+async function isUserThrottled(request: Request, userId: string): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  return consumePrivateApiRateLimit(request, userId, {
+    userScope: "watchlist-user",
+    userLimit: 90,
+    ipScope: "watchlist-ip",
+    ipLimit: 180,
+  });
 }
 
-function throttledResponse() {
+function throttledResponse(retryAfterSeconds: number) {
   return NextResponse.json({ error: "Too many requests. Please try again shortly." }, {
     status: 429,
-    headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+    headers: { "Retry-After": String(retryAfterSeconds), "Cache-Control": "no-store" },
   });
 }
 
@@ -60,7 +61,8 @@ export async function GET(request: Request) {
     if (!country) return countryUnavailable();
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Please sign in to view your watchlist." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
-    if (await isUserThrottled(userId)) return throttledResponse();
+    const rateLimit = await isUserThrottled(request, userId);
+    if (!rateLimit.allowed) return throttledResponse(rateLimit.retryAfterSeconds);
 
     const { searchParams } = new URL(request.url);
     const slug = (searchParams.get("slug") ?? "").trim().slice(0, 120);
@@ -71,17 +73,21 @@ export async function GET(request: Request) {
       });
       return NextResponse.json({ isSaved: Boolean(item) }, { headers: { "Cache-Control": "private, no-store" } });
     }
-    const pageValue = Number(searchParams.get("page") ?? "1");
-    const pageSizeValue = Number(searchParams.get("pageSize") ?? "20");
-    const page = Number.isInteger(pageValue) && pageValue > 0 ? Math.min(pageValue, 10000) : 1;
-    const pageSize = Number.isInteger(pageSizeValue) && pageSizeValue > 0 ? Math.min(pageSizeValue, 50) : 20;
+    const pagination = parseBoundedPagination(searchParams);
+    if (!pagination) {
+      return NextResponse.json(
+        { error: "Invalid pagination. Page must be 1–100 and pageSize must be 1–50." },
+        { status: 400, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    const { page, pageSize, skip, take } = pagination;
     const where = { userId, movie: currentLicenceFilter(country) };
     const [items, totalItems] = await Promise.all([
       prisma.watchlist.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip,
+      take,
       select: {
         id: true,
         createdAt: true,
