@@ -36,7 +36,6 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
       DEMO_MODE: "false"
       REQUIRE_EMAIL_VERIFICATION: "false"
-      MOVIESHUB_E2E: "true"
       CI: "true"
     steps:
       - name: Checkout repository
@@ -79,3 +78,5 @@ jobs:
 
       - name: Browser authentication and security tests
         run: npm run test:e2e
+        env:
+          MOVIESHUB_E2E: "true"
