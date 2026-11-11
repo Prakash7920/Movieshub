@@ -3,6 +3,20 @@ import { z } from "zod";
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const isProduction = nodeEnv === "production";
 
+const isAllowedCiHttpUrl = (value: string) => {
+  if (process.env.CI !== "true") return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" &&
+      ["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   DIRECT_URL: z.string().min(1).optional(),
@@ -55,7 +69,7 @@ const productionEnvSchema = baseEnvSchema.superRefine((value, context) => {
     }
   }
 
-  if (value.NEXTAUTH_URL && !value.NEXTAUTH_URL.startsWith("https://")) {
+  if (value.NEXTAUTH_URL && !value.NEXTAUTH_URL.startsWith("https://") && !isAllowedCiHttpUrl(value.NEXTAUTH_URL)) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["NEXTAUTH_URL"],
@@ -63,7 +77,7 @@ const productionEnvSchema = baseEnvSchema.superRefine((value, context) => {
     });
   }
 
-  if (value.NEXT_PUBLIC_APP_URL && !value.NEXT_PUBLIC_APP_URL.startsWith("https://")) {
+  if (value.NEXT_PUBLIC_APP_URL && !value.NEXT_PUBLIC_APP_URL.startsWith("https://") && !isAllowedCiHttpUrl(value.NEXT_PUBLIC_APP_URL)) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["NEXT_PUBLIC_APP_URL"],
