@@ -5,6 +5,7 @@ import { createOneTimeToken } from "../lib/security/tokens";
 
 const prisma = new PrismaClient();
 const testPassword = "MoviesHub-Test-Password-2026!";
+const genericRegistrationMessage = "If registration can be completed with these details, it has been processed.";
 let isolatedDatabaseValidated = false;
 
 function requireIsolatedTestDatabase() {
@@ -68,7 +69,7 @@ test("registration, login, logout and protected routes work on mobile", async ({
   await inputs.nth(3).fill(testPassword);
   await page.getByRole("button", { name: "Create account" }).click();
 
-  await expect(page.getByRole("status")).toContainText("Account created");
+  await expect(page.getByRole("status")).toContainText(genericRegistrationMessage);
   await expect.poll(async () => {
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } });
     return user?.role;
@@ -197,15 +198,14 @@ test("admin APIs reject anonymous and ordinary users, and ignore role escalation
 
   const userEmail = `ordinary-${Date.now()}@movieshub-e2e.test`;
   const ordinary = await createUser(userEmail);
+  const escalationEmail = `escalation-${Date.now()}@movieshub-e2e.test`;
   const response = await page.request.post("/api/auth/register", {
     headers: { origin: "http://127.0.0.1:3000", referer: "http://127.0.0.1:3000/", "content-type": "application/json" },
-    data: { name: "Escalation", email: `escalation-${Date.now()}@movieshub-e2e.test`, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
+    data: { name: "Escalation", email: escalationEmail, password: testPassword, confirmPassword: testPassword, role: "ADMIN" },
   });
-  expect(response.status()).toBe(201);
-  const payload = await response.json();
-  expect(payload.user).not.toHaveProperty("passwordHash");
-  expect(payload.user).not.toHaveProperty("passwordResetTokens");
-  const created = await prisma.user.findUnique({ where: { id: payload.user.id }, select: { role: true } });
+  expect(response.status()).toBe(202);
+  expect((await response.json()).message).toContain(genericRegistrationMessage);
+  const created = await prisma.user.findUnique({ where: { email: escalationEmail }, select: { role: true } });
   expect(created?.role).toBe("USER");
 
   await page.goto("/auth/login");
@@ -495,9 +495,9 @@ test("registration throttling returns 429 after the configured email window", as
   const second = await page.request.post("/api/auth/register", { headers, data });
   const third = await page.request.post("/api/auth/register", { headers, data });
   const fourth = await page.request.post("/api/auth/register", { headers, data });
-  expect(first.status()).toBe(201);
-  expect(second.status()).toBe(409);
-  expect(third.status()).toBe(409);
+  expect(first.status()).toBe(202);
+  expect(second.status()).toBe(202);
+  expect(third.status()).toBe(202);
   expect(fourth.status()).toBe(429);
   expect(fourth.headers()["retry-after"]).toBeTruthy();
 });

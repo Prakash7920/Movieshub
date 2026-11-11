@@ -15,6 +15,13 @@ const resetSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+function clientIp(request: Request): string | null {
+  const forwarded = request.headers.get("x-vercel-forwarded-for") ??
+    request.headers.get("x-forwarded-for") ??
+    request.headers.get("x-real-ip");
+  return forwarded?.split(",")[0]?.trim() || null;
+}
+
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
@@ -41,6 +48,13 @@ export async function POST(request: Request) {
     }
 
     const tokenHash = hashOneTimeToken(parsed.data.token);
+    const tokenLimit = await consumeRateLimit("password-reset-token", tokenHash, 5, 60 * 60);
+    if (!tokenLimit.allowed) {
+      return NextResponse.json({ error: "Too many reset attempts. Please request a new reset link." }, {
+        status: 429,
+        headers: { "Retry-After": String(tokenLimit.retryAfterSeconds), "Cache-Control": "no-store" },
+      });
+    }
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },
       select: { id: true, userId: true, expiresAt: true, usedAt: true },

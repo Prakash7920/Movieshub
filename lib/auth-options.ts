@@ -20,10 +20,11 @@ function authDiagnostic(stage: string, details: Record<string, string | number |
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
+  // HTTPS for deployed environments; allow the explicit local E2E test override.
   useSecureCookies: process.env.MOVIESHUB_E2E === "true"
     ? false
     : process.env.NODE_ENV === "production" || process.env.NEXTAUTH_URL?.startsWith("https://") === true,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   pages: { signIn: "/auth/login" },
   providers: [
     CredentialsProvider({

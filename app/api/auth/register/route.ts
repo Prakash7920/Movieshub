@@ -12,17 +12,14 @@ import { getPublicAppUrl, sendTransactionalEmail } from "@/lib/email/resend";
 
 export const runtime = "nodejs";
 
-function isEmailUniqueConflict(error: Prisma.PrismaClientKnownRequestError): boolean {
-  const target = error.meta?.target;
-  if (Array.isArray(target)) {
-    return target.some((field) => String(field).toLowerCase() === "email");
-  }
-  if (typeof target === "string" && target.toLowerCase().includes("email")) {
-    return true;
-  }
+const registrationMessage =
+  "If registration can be completed with these details, it has been processed. Try signing in; if you already have an account, use the password reset option if needed.";
 
-  const constraint = error.meta?.constraint;
-  return typeof constraint === "string" && constraint.toLowerCase().includes("email");
+function registrationResponse() {
+  return NextResponse.json(
+    { message: registrationMessage },
+    { status: 202, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(request: Request) {
@@ -39,7 +36,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid registration details." },
-        { status: 400 },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -68,12 +65,7 @@ export async function POST(request: Request) {
       select: { id: true },
     });
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      );
-    }
+    if (existingUser) return registrationResponse();
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
@@ -90,7 +82,6 @@ export async function POST(request: Request) {
     });
 
     const appUrl = getPublicAppUrl();
-    let verificationSent = false;
     if (appUrl) {
       const oneTimeToken = createOneTimeToken();
       await prisma.emailVerificationToken.deleteMany({ where: { userId: user.id, usedAt: null } });
@@ -107,37 +98,21 @@ export async function POST(request: Request) {
         subject: "Verify your NexaFilm email",
         html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#111"><h2>Welcome to NexaFilm</h2><p>Confirm your email address to complete your account setup.</p><p><a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px">Verify email</a></p><p>This link expires in 24 hours and can be used only once. If you did not create this account, you can ignore this email.</p><p style="color:#666;font-size:12px">NexaFilm · One Platform. Every Language. Endless Stories.</p></div>`,
       });
-      verificationSent = delivery.sent;
       if (!delivery.sent) {
         await prisma.emailVerificationToken.deleteMany({ where: { tokenHash: oneTimeToken.tokenHash } });
       }
     }
 
-    return NextResponse.json(
-      {
-        message: verificationSent
-          ? "Account created. Check your email for a verification link."
-          : "Account created. Email verification delivery is not available yet; you can request a new link later.",
-        user,
-      },
-      { status: 201, headers: { "Cache-Control": "no-store" } },
-    );
+    return registrationResponse();
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002" &&
-      isEmailUniqueConflict(error)
-    ) {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      );
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return registrationResponse();
     }
 
     logSafeError("Registration failed", error);
     return NextResponse.json(
-      { error: "Unable to create your account right now. Please try again." },
-      { status: 500 },
+      { error: "Unable to process registration right now. Please try again." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
