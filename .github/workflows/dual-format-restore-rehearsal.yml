@@ -38,6 +38,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       PGDATABASE: postgres
+      NEXAFILM_DISPOSABLE_RESTORE_TEST: "1"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
