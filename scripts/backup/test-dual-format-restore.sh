@@ -25,15 +25,20 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 umask 077
 
-# Refuse to run unless connected to the dedicated disposable CI service.
-server_name=$(psql -X -v ON_ERROR_STOP=1 -Atc 'SELECT inet_server_addr()::text')
+# Require an explicit CI-only opt-in and fixed disposable connection settings.
+# The workflow provisions this PostgreSQL service container for this job.
+[[ "${NEXAFILM_DISPOSABLE_RESTORE_TEST:-}" == "1" ]] || {
+  echo "Refusing rehearsal without disposable CI opt-in" >&2
+  exit 1
+}
+[[ "$PGHOST" == "127.0.0.1" && "$PGPORT" == "5432" &&
+   "$PGUSER" == "postgres" && "$PGDATABASE" == "postgres" ]] || {
+  echo "Refusing rehearsal: unexpected PostgreSQL connection settings" >&2
+  exit 1
+}
 current_db=$(psql -X -v ON_ERROR_STOP=1 -Atc 'SELECT current_database()')
 [[ "$current_db" == "postgres" ]] || {
   echo "Refusing rehearsal outside the disposable postgres maintenance database" >&2
-  exit 1
-}
-[[ "$server_name" == "127.0.0.1" || "$server_name" == "::1" ]] || {
-  echo "Refusing rehearsal: PostgreSQL server is not loopback" >&2
   exit 1
 }
 
