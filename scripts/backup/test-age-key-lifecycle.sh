@@ -31,17 +31,17 @@ rotated_recipient=$(recipient_of "$work/rotated.txt")
 printf 'NexaFilm recovery lifecycle fixture\n' > "$work/old-backup.dump"
 printf 'NexaFilm post-rotation fixture\n' > "$work/new-backup.dump"
 
-# A retained backup is encrypted to both primary and emergency recipients.
-age --encrypt --recipient "$primary_recipient" --recipient "$emergency_recipient" \
-  --output "$work/old-backup.dump.age" "$work/old-backup.dump"
+# Exercise the production helper itself with both primary and emergency recipients.
+bash "$ENCRYPT" "$work/old-backup.dump" "$work/old-backup.dump.age" \
+  "$primary_recipient" "$emergency_recipient"
 
 bash "$DECRYPT" "$work/old-backup.dump.age" "$work/primary-restored.dump" "$work/primary.txt"
 cmp "$work/old-backup.dump" "$work/primary-restored.dump"
-echo "Primary-key recovery: PASS"
+echo "Primary-key recovery through multi-recipient helper: PASS"
 
 bash "$DECRYPT" "$work/old-backup.dump.age" "$work/emergency-restored.dump" "$work/emergency.txt"
 cmp "$work/old-backup.dump" "$work/emergency-restored.dump"
-echo "Emergency-key recovery: PASS"
+echo "Emergency-key recovery through multi-recipient helper: PASS"
 
 # Simulate loss of the primary identity without touching any real key.
 mv "$work/primary.txt" "$work/primary.unavailable"
@@ -74,7 +74,26 @@ fi
 [[ ! -e "$work/wrong-generation.dump" ]] || {
   echo "FAIL: partial plaintext published for wrong key" >&2; exit 1;
 }
-echo "Key-generation separation and no-partial-output: PASS"
+echo "Wrong-key rejection and no-partial-output: PASS"
+
+# Tampering with the multi-recipient ciphertext must fail authentication.
+cp "$work/old-backup.dump.age" "$work/tampered.dump.age"
+python3 - "$work/tampered.dump.age" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+data = bytearray(path.read_bytes())
+if len(data) < 32:
+    raise SystemExit("ciphertext unexpectedly short")
+data[-10] ^= 0x01
+path.write_bytes(data)
+PY
+if bash "$DECRYPT" "$work/tampered.dump.age" "$work/tampered-restored.dump" "$work/emergency.txt" >/dev/null 2>&1; then
+  echo "FAIL: tampered multi-recipient ciphertext unexpectedly decrypted" >&2; exit 1
+fi
+[[ ! -e "$work/tampered-restored.dump" ]] || {
+  echo "FAIL: plaintext published after tamper failure" >&2; exit 1;
+}
+echo "Multi-recipient ciphertext tamper rejection: PASS"
 
 # Test-only identity permissions must be restrictive.
 [[ "$(stat -c '%a' "$work/primary.unavailable")" == "600" ]]
