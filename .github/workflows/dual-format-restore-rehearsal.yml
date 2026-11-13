@@ -1,0 +1,51 @@
+name: Dual-Format Backup Restore Rehearsal (Disposable CI)
+
+on:
+  pull_request:
+    paths:
+      - "scripts/backup/**"
+      - ".github/workflows/dual-format-restore-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dual-format-restore-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  dual-format-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client, OpenSSL, and AGE
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client openssl age
+
+      - name: Run disposable dual-format restore rehearsal
+        run: bash scripts/backup/test-dual-format-restore.sh
