@@ -28,9 +28,11 @@ Expected chain:
 - PR #8 Vercel build validation: successful combined status on the reviewed head.
 - PR #9 AGE encryption test run: https://github.com/Prakash7920/movieshub/actions/runs/43455376379 — PASS
 - PR #9 AGE recovery lifecycle test run: https://github.com/Prakash7920/movieshub/actions/runs/43455376589 — PASS
-- PR #10 dual-format restore rehearsal: latest run was cancelled before job execution; a successful run on the final remediation head is still required.
-- PR #10 Vercel validation: pending at the time this record was prepared.
-- PR #12 backup CI workflows: running at the time this record was prepared; final results must be checked against the final PR #12 head.
+- PR #10 AGE recovery lifecycle tests: https://github.com/Prakash7920/movieshub/actions/runs/43456028515 — PASS
+- PR #10 AGE backup encryption tests: https://github.com/Prakash7920/movieshub/actions/runs/43456028582 — PASS
+- PR #10 dual-format restore rehearsal: https://github.com/Prakash7920/movieshub/actions/runs/43456028608 — PASS. Logs confirm non-GitHub-Actions refusal, synthetic archive creation, OpenSSL decrypt compatibility, AGE primary/emergency decrypt compatibility, and all three isolated restore validations.
+- PR #10 Vercel validation: successful combined status on the reviewed head.
+- PR #11 and PR #12 are documentation-only at their respective PR diffs; Vercel preview statuses were still pending when this record was prepared.
 
 ## Approval boundary
 
