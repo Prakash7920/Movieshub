@@ -16,13 +16,13 @@ recipient=$(awk '/^# public key:/ {print $4}' "$work/test-identity.txt")
 [[ -n "$recipient" ]] || { echo "Could not derive test recipient" >&2; exit 1; }
 
 printf 'NexaFilm isolated AGE backup test payload\n' > "$work/plain.dump"
-"$ENCRYPT" "$work/plain.dump" "$work/backup.dump.age" "$recipient"
-"$DECRYPT" "$work/backup.dump.age" "$work/restored.dump" "$work/test-identity.txt"
+bash "$ENCRYPT" "$work/plain.dump" "$work/backup.dump.age" "$recipient"
+bash "$DECRYPT" "$work/backup.dump.age" "$work/restored.dump" "$work/test-identity.txt"
 cmp "$work/plain.dump" "$work/restored.dump"
 
 # A different identity must not decrypt the backup.
 age-keygen -o "$work/wrong-identity.txt" 2>"$work/wrong-keygen.log"
-if "$DECRYPT" "$work/backup.dump.age" "$work/wrong-restored.dump" "$work/wrong-identity.txt" >/dev/null 2>&1; then
+if bash "$DECRYPT" "$work/backup.dump.age" "$work/wrong-restored.dump" "$work/wrong-identity.txt" >/dev/null 2>&1; then
   echo "FAIL: wrong identity unexpectedly decrypted the backup" >&2
   exit 1
 fi
@@ -39,7 +39,7 @@ if len(data) < 32:
 data[-10] ^= 0x01
 p.write_bytes(data)
 PY
-if "$DECRYPT" "$work/tampered.dump.age" "$work/tampered-restored.dump" "$work/test-identity.txt" >/dev/null 2>&1; then
+if bash "$DECRYPT" "$work/tampered.dump.age" "$work/tampered-restored.dump" "$work/test-identity.txt" >/dev/null 2>&1; then
   echo "FAIL: tampered ciphertext unexpectedly decrypted" >&2
   exit 1
 fi
