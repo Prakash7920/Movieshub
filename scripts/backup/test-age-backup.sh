@@ -12,7 +12,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 age-keygen -o "$work/test-identity.txt" 2>"$work/keygen.log"
-recipient=$(awk '/^# public key:/ {print $4}' "$work/keygen.log")
+recipient=$(awk '/^# public key:/ {print $4}' "$work/test-identity.txt")
 [[ -n "$recipient" ]] || { echo "Could not derive test recipient" >&2; exit 1; }
 
 printf 'NexaFilm isolated AGE backup test payload\n' > "$work/plain.dump"
