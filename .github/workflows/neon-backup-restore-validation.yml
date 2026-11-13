@@ -61,7 +61,7 @@ jobs:
           from urllib.parse import urlsplit
 
           url = urlsplit(os.environ["RESTORE_TEST_DATABASE_URL"])
-          expected_host = "ep-royal-dream-b33w6cv6.c-4.ap-southeast-1.aws.neon.tech"
+          expected_host = "ep-young-brook-aotabpoy.c-2.ap-southeast-1.aws.neon.tech"
           if url.scheme not in ("postgres", "postgresql"):
               raise SystemExit("Refusing restore: unsupported connection URL scheme.")
           if url.hostname != expected_host:
