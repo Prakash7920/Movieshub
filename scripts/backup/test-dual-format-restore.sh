@@ -1,9 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Disposable integration rehearsal. This script only connects to the local
-# PostgreSQL service supplied by its CI workflow; it never reads project secrets.
-ROOT=$(cd "$(dirname "$0")" && pwd)
+# This is an accidental-execution guard, not a cryptographic attestation of the runner.
+[[ "${GITHUB_ACTIONS:-}" == "true" ]] || {
+  echo "Refusing rehearsal outside GitHub Actions (GITHUB_ACTIONS must be true)" >&2
+  exit 1
+}
+[[ "${GITHUB_RUN_ID:-}" =~ ^[0-9]+$ ]] || {
+  echo "Refusing rehearsal without a valid GitHub Actions run ID" >&2
+  exit 1
+}
+[[ -n "${GITHUB_WORKSPACE:-}" && -d "${GITHUB_WORKSPACE:-}" ]] || {
+  echo "Refusing rehearsal without the GitHub Actions workspace" >&2
+  exit 1
+}
+
+ROOT=$(cd "$(dirname "$0")" && pwd -P)
+REPO_ROOT=$(cd "$ROOT/../.." && pwd -P)
+WORKSPACE_ROOT=$(cd "$GITHUB_WORKSPACE" && pwd -P)
+[[ "$WORKSPACE_ROOT" == "$REPO_ROOT" ]] || {
+  echo "Refusing rehearsal: GitHub workspace does not match this checkout" >&2
+  exit 1
+}
+[[ "${RUNNER_OS:-}" == "Linux" ]] || {
+  echo "Refusing rehearsal: expected the configured Linux CI runner" >&2
+  exit 1
+}
+
+# Disposable integration rehearsal. It only connects to the local PostgreSQL
+# service provisioned by the dedicated GitHub Actions workflow.
 ENCRYPT="$ROOT/age-encrypt.sh"
 DECRYPT="$ROOT/age-decrypt.sh"
 
@@ -21,12 +46,6 @@ done
 : "${PGDATABASE:=postgres}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
-umask 077
-
-# Require an explicit CI-only opt-in and fixed disposable connection settings.
-# The workflow provisions this PostgreSQL service container for this job.
 [[ "${NEXAFILM_DISPOSABLE_RESTORE_TEST:-}" == "1" ]] || {
   echo "Refusing rehearsal without disposable CI opt-in" >&2
   exit 1
@@ -41,6 +60,10 @@ current_db=$(psql -X -v ON_ERROR_STOP=1 -Atc 'SELECT current_database()')
   echo "Refusing rehearsal outside the disposable postgres maintenance database" >&2
   exit 1
 }
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+umask 077
 
 db_url="postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
 source_db="nexafilm_restore_fixture"
@@ -82,7 +105,6 @@ pg_restore --list "$work/fixture.dump" > "$work/archive-list.txt"
 test -s "$work/archive-list.txt"
 echo "Synthetic PostgreSQL archive creation and listing: PASS"
 
-# Legacy OpenSSL compatibility rehearsal using a disposable test-only secret.
 export LEGACY_TEST_PASSPHRASE="nexafilm-ci-only-$(openssl rand -hex 24)"
 openssl enc -aes-256-cbc -salt -pbkdf2 \
   -pass env:LEGACY_TEST_PASSPHRASE \
@@ -98,8 +120,6 @@ mv "$work/legacy-restored.dump.tmp" "$work/legacy-restored.dump"
 cmp "$work/fixture.dump" "$work/legacy-restored.dump"
 echo "Legacy OpenSSL decrypt and archive compatibility: PASS"
 
-# Generate disposable primary/emergency AGE identities and encrypt one backup
-# to both recipients. Private identities stay inside this temporary directory.
 age-keygen -o "$work/primary.txt" 2> "$work/primary-keygen.log"
 age-keygen -o "$work/emergency.txt" 2> "$work/emergency-keygen.log"
 chmod 600 "$work/primary.txt" "$work/emergency.txt"
@@ -136,7 +156,6 @@ verify_target() {
   echo "Restore schema/data verification ($name): PASS"
 }
 
-# Each restore uses a newly created, isolated database.
 reset_db "$legacy_db"
 pg_restore --exit-on-error --no-owner --no-acl \
   --dbname="postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$legacy_db" \
@@ -149,8 +168,6 @@ pg_restore --exit-on-error --no-owner --no-acl \
   "$work/age-primary.dump"
 verify_target "$age_db"
 
-# Rehearse a safe repeat by recreating a clean disposable target before the
-# second restore; this does not claim that an in-place duplicate restore is safe.
 reset_db "$repeat_db"
 pg_restore --exit-on-error --no-owner --no-acl \
   --dbname="postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$repeat_db" \
