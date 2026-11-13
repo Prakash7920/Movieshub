@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Safety invariant: refuse non-CI execution before any database command is invoked.
 # This is an accidental-execution guard, not a cryptographic attestation of the runner.
 [[ "${GITHUB_ACTIONS:-}" == "true" ]] || {
   echo "Refusing rehearsal outside GitHub Actions (GITHUB_ACTIONS must be true)" >&2
