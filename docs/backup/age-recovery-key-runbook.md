@@ -15,7 +15,7 @@ Never commit private identities, paste them into chat, print them in CI logs, or
 
 ## Backup recipient policy
 
-For each backup generation, record a non-secret key-generation identifier, creation date, public recipient fingerprint, and the backup retention period. Where emergency recovery is required, encrypt new backups to both the primary and emergency public recipients. Verify that the installed backup helper and workflow explicitly support multiple recipients before relying on this policy in Production; the current helper accepts one recipient argument.
+For each backup generation, record a non-secret key-generation identifier, creation date, public recipient fingerprint, and the backup retention period. Where emergency recovery is required, encrypt new backups to both the primary and emergency public recipients. The isolated backup helper now accepts one or more recipient arguments, and the lifecycle CI exercises both primary and emergency recipients. The existing Production backup workflow does not yet invoke this AGE helper; do not rely on this policy in Production until a separately approved migration updates the Production workflow and its key-custody configuration.
 
 ## Recovery procedure
 
