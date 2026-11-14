@@ -391,3 +391,17 @@ model Session {
   updatedAt DateTime @updatedAt
   @@index([sessionToken])
 }
+
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId, createdAt])
+  @@index([createdAt])
+}
