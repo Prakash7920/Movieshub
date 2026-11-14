@@ -36,7 +36,7 @@ The current restore-validation workflow `.github/workflows/neon-backup-restore-v
 - Requires the target database name to equal `restore_validation` before restore.
 - Restores with `pg_restore --exit-on-error --no-owner --no-acl` and checks schema/table information and selected row counts.
 
-The AGE encryption and recovery helpers, key lifecycle tests, and disposable dual-format restore rehearsal exist on separate open Draft pull requests. They are not the Production backup or restore implementation. The dual-format rehearsal used synthetic data, disposable credentials and identities, and isolated CI PostgreSQL databases.
+The AGE encryption and recovery helpers, key lifecycle tests, and disposable dual-format restore rehearsal were reviewed and merged through the stacked PR chain #8–#12. Their cumulative integration into `main` is tracked separately by PR #13. They are not the Production backup or restore implementation. The dual-format rehearsal used synthetic data, disposable credentials and identities, and isolated CI PostgreSQL databases.
 
 ### Current-state limitations
 
@@ -76,7 +76,7 @@ Before any Production change, obtain written approval for:
 ### Gate 1 — Non-Production implementation readiness
 
 - Keep the existing Production OpenSSL workflows unchanged.
-- Complete review and merge of the AGE helper, lifecycle, and dual-format rehearsal work through their normal review process.
+- Complete review and merge of the AGE helper, lifecycle, and dual-format rehearsal work through their normal review process. PRs #8–#12 have been approved and merged into their stacked base branches; final cumulative promotion into `main` is pending PR #13.
 - Add or validate a non-Production AGE workflow using disposable credentials and synthetic data first.
 - Verify multi-recipient encryption, primary recovery, emergency recovery, wrong-key rejection, tamper rejection, and no partial plaintext publication.
 - Verify archive listing, isolated restore, schema/data checks, and a repeat restore into a newly created clean target.
@@ -212,7 +212,7 @@ Initiate rollback review if any of the following occurs during transition:
 Every item must be checked and evidenced before a Production cutover can be approved:
 
 - [ ] Business and technical owners named; RPO/RTO and retention approved.
-- [ ] PRs for AGE helper, lifecycle, and dual-format rehearsal reviewed and merged under repository policy.
+- [ ] PRs for AGE helper, lifecycle, and dual-format rehearsal reviewed and merged under repository policy, with the cumulative chain integrated into `main`.
 - [ ] Non-Production end-to-end AGE restore passed with primary and emergency identities.
 - [ ] Historical OpenSSL restore path verified and original passphrase custody confirmed.
 - [ ] Production primary/emergency key custody established independently and recovery access tested.
@@ -247,4 +247,4 @@ This phase can pass as a design deliverable when:
 - Current restore-validation workflow: `.github/workflows/neon-backup-restore-validation.yml` (default branch).
 - AGE recovery-key runbook: `docs/backup/age-recovery-key-runbook.md`.
 - Dual-format disposable restore rehearsal: `scripts/backup/test-dual-format-restore.sh` and `.github/workflows/dual-format-restore-rehearsal.yml`.
-- Related work remains in Draft PRs #8, #9, and #10 until separately reviewed and merged.
+- The stacked implementation and design work was reviewed and merged through PRs #8–#12. Final cumulative integration into `main` is tracked by PR #13.
