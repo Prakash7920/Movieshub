@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       },
       select: { id: true, slug: true, titleEn: true },
     });
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "MOVIE_DRAFT_CREATED", resourceType: "Movie", resourceId: movie.id, metadata: { slug: movie.slug } } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_CREATED", resourceType: "Movie", resourceId: movie.id, metadata: { slug: movie.slug } }));
     return NextResponse.json({ message: "Movie saved as draft. Publish it after reviewing metadata and rights.", movie }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
@@ -188,7 +188,7 @@ export async function PATCH(request: Request) {
       });
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (!updated) return NextResponse.json({ error: "Movie not found." }, { status: 404 });
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: b.publish ? "MOVIE_PUBLISHED" : "MOVIE_UNPUBLISHED", resourceType: "Movie", resourceId: updated.id } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: b.publish ? "MOVIE_PUBLISHED" : "MOVIE_UNPUBLISHED", resourceType: "Movie", resourceId: updated.id }));
     return NextResponse.json({ message: b.publish ? "Movie published." : "Movie unpublished.", movie: updated });
   } catch (error) {
     if (error instanceof Error && error.message === "LICENCE_NOT_PUBLISHABLE") {
@@ -250,7 +250,7 @@ export async function PUT(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (updateResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
     if (updateResult === "NOT_DRAFT") return NextResponse.json({ error: "Only unpublished draft movies can be edited." }, { status: 409 });
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "MOVIE_DRAFT_UPDATED", resourceType: "Movie", resourceId: b.id as string } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_UPDATED", resourceType: "Movie", resourceId: b.id as string }));
     return NextResponse.json({ message: "Draft movie updated successfully." });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.json({ error: "That movie slug already exists." }, { status: 409 });
@@ -281,7 +281,7 @@ export async function DELETE(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (deleteResult === "NOT_FOUND") return NextResponse.json({ error: "Movie not found." }, { status: 404 });
     if (deleteResult === "NOT_DRAFT") return NextResponse.json({ error: "Only unpublished draft movies can be deleted." }, { status: 409 });
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "MOVIE_DRAFT_DELETED", resourceType: "Movie", resourceId: id } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "MOVIE_DRAFT_DELETED", resourceType: "Movie", resourceId: id }));
     return NextResponse.json({ message: "Draft movie deleted." });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return NextResponse.json({ error: "The movie changed during deletion. Reload the draft and try again." }, { status: 409 });
