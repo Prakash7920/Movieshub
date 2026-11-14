@@ -44,7 +44,7 @@ const baseEnvSchema = z.object({
     }),
 });
 
-const parsedEnv = baseEnvSchema.safeParse(process.env);
+const productionSchema = baseEnvSchema.superRefine((value, context) => {\n  if (!isProduction) return;\n  for (const key of ["DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"] as const) {\n    if (!value[key]) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: "Required in production." });\n  }\n  if (value.NEXTAUTH_URL && !value.NEXTAUTH_URL.startsWith("https://")) context.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXTAUTH_URL"], message: "Production URL must use HTTPS." });\n  if (value.NEXT_PUBLIC_APP_URL && !value.NEXT_PUBLIC_APP_URL.startsWith("https://")) context.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXT_PUBLIC_APP_URL"], message: "Production URL must use HTTPS." });\n});\n\nconst parsedEnv = productionSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
   throw new Error(
