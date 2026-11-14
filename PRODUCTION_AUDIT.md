@@ -58,7 +58,7 @@ NexaFilm has a working Next.js application and a Phase 5 security-hardening draf
 ## Production release gates
 
 - [ ] Phase 5 PR independently reviewed and approved.
-- [ ] Prisma migrations validated against an isolated database; Production migration separately approved.
+- [ ] Investigate the Neon P3009 failed-migration record read-only, confirm which environment/database endpoint was targeted, then validate recovery against an isolated clone. No migration resolution or Production migration is authorized.
 - [ ] Audit event writes made atomic with business mutations and failure behavior tested.
 - [ ] Integration and browser E2E suites pass against isolated test services.
 - [ ] Payment order creation, signature verification, webhook idempotency/reconciliation and tests complete before enabling checkout.
