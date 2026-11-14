@@ -4,6 +4,7 @@ import { ArrowRight, Bookmark, History, Settings2, ShieldCheck } from "lucide-re
 import { WatchlistContent } from "@/components/movies/watchlist";
 import { authOptions } from "@/lib/auth-options";
 import { getUserEntitlements } from "@/lib/subscriptions/entitlements";
+import { logSafeError } from "@/lib/security/safe-log";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function DashboardPage() {
   const sessionUser = session?.user as { id?: string } | undefined;
   const entitlements = sessionUser?.id
     ? await getUserEntitlements(sessionUser.id).catch((error) => {
-        console.error("Dashboard subscription lookup failed:", error);
+        logSafeError("Dashboard subscription lookup failed", error);
         return null;
       })
     : null;

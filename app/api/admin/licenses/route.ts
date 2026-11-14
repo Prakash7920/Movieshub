@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/client-identity";
+import { hasValidJsonContentType, isSameOriginRequest } from "@/lib/security/request-guards";
 import { getServerSession } from "next-auth/next";
 import { LicenseStatus, ContentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth-options";
@@ -6,29 +10,77 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-async function requireAdmin() {
-  const session = await getServerSession(authOptions);
-  const sessionUser = session?.user as { id?: string } | undefined;
+async function requireAdmin(request: Request) {
+  const ip = getClientIp(request.headers);
+  if (ip) {
+    try {
+      const ipLimit = await consumeRateLimit("admin-api-ip", ip, 60, 60);
+      if (!ipLimit.allowed) {
+        return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
+          status: 429,
+          headers: { "Retry-After": String(ipLimit.retryAfterSeconds), "Cache-Control": "no-store" },
+        }) };
+      }
+    } catch {
+      return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+    }
+  }
+  let sessionUser: { id?: string } | undefined;
+  try {
+    const session = await getServerSession(authOptions);
+    sessionUser = session?.user as { id?: string } | undefined;
+  } catch (error) {
+    logSafeError("Admin session lookup failed", error);
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
   if (!sessionUser?.id) return { error: NextResponse.json({ error: "Sign in required." }, { status: 401 }) };
-  const user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  try {
+    const userLimit = await consumeRateLimit("admin-api-user", sessionUser.id, 120, 60);
+    if (!userLimit.allowed) {
+      return { error: NextResponse.json({ error: "Too many administrative requests. Please try again later." }, {
+        status: 429,
+        headers: { "Retry-After": String(userLimit.retryAfterSeconds), "Cache-Control": "no-store" },
+      }) };
+    }
+  } catch {
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
+  let user: { role: string; isBanned: boolean } | null;
+  try {
+    user = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true, isBanned: true } });
+  } catch (error) {
+    logSafeError("Admin authorization lookup failed", error);
+    return { error: NextResponse.json({ error: "Administrative service is temporarily unavailable." }, { status: 503 }) };
+  }
   if (!user || user.isBanned || !["ADMIN", "SUPERADMIN"].includes(user.role)) {
     return { error: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
   }
   return { userId: sessionUser.id };
 }
 
-export async function GET() {
-  const auth = await requireAdmin();
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
-  const movies = await prisma.movie.findMany({
-    orderBy: { titleEn: "asc" },
-    select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
-  });
-  return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+  try {
+    const movies = await prisma.movie.findMany({
+      orderBy: { titleEn: "asc" },
+      select: { id: true, titleEn: true, isPublished: true, license: { select: { id: true, owner: true, status: true, startDate: true, expiryDate: true, allowedCountries: true, notes: true } } },
+    });
+    return NextResponse.json({ movies }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
+  } catch (error) {
+    logSafeError("Admin licence list failed", error);
+    return NextResponse.json({ error: "Unable to load licence records." }, { status: 503 });
+  }
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin();
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
@@ -76,13 +128,19 @@ export async function POST(request: Request) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during this update. Reload the record and try again." }, { status: 409 });
     }
-    console.error("Admin licence save failed:", error);
+    logSafeError("Admin licence save failed", error);
     return NextResponse.json({ error: "Unable to save licence details." }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireAdmin();
+  if (!isSameOriginRequest(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!(await hasValidJsonContentType(request, 32 * 1024))) {
+    return NextResponse.json({ error: "A valid JSON request is required." }, { status: 415, headers: { "Cache-Control": "no-store" } });
+  }
+  const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
   try {
     const body: unknown = await request.json();
@@ -153,7 +211,7 @@ export async function PATCH(request: Request) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
       return NextResponse.json({ error: "The licence changed during review. Reload the record and try again." }, { status: 409 });
     }
-    console.error("Admin licence review failed:", error);
+    logSafeError("Admin licence review failed", error);
     return NextResponse.json({ error: "Unable to review licence." }, { status: 500 });
   }
 }

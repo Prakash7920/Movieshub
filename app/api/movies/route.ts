@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
+import { logSafeError } from "@/lib/security/safe-log";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/security/client-identity";
 import { prisma } from "@/lib/prisma";
 import { getVercelViewerCountry } from "@/lib/licensing/territory";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  const ip = getClientIp(request.headers);
+  if (ip) {
+    try {
+      const limit = await consumeRateLimit("catalogue-search-ip", ip, 120, 60);
+      if (!limit.allowed) {
+        return NextResponse.json({ error: "Too many catalogue requests. Please try again shortly." }, {
+          status: 429,
+          headers: { "Retry-After": String(limit.retryAfterSeconds), "Cache-Control": "no-store" },
+        });
+      }
+    } catch {
+      return NextResponse.json({ error: "Catalogue service is temporarily unavailable." }, { status: 503 });
+    }
+  }
+
   const country = getVercelViewerCountry(request.headers);
   if (!country) {
     return NextResponse.json(
@@ -18,6 +36,12 @@ export async function GET(request: Request) {
     const search = (searchParams.get("search") ?? "").trim().slice(0, 100);
     const language = searchParams.get("language") ?? "all";
     const genre = searchParams.get("genre") ?? "all";
+    if (language !== "all" && !/^[a-z]{2,3}$/.test(language)) {
+      return NextResponse.json({ error: "Invalid language filter." }, { status: 400 });
+    }
+    if (genre !== "all" && (genre.length > 80 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(genre))) {
+      return NextResponse.json({ error: "Invalid genre filter." }, { status: 400 });
+    }
     const now = new Date();
 
     const currentlyLicensed = {
@@ -47,6 +71,7 @@ export async function GET(request: Request) {
         ...(genre !== "all" ? { genres: { some: { genre: { slug: genre } } } } : {}),
       },
       orderBy: [{ isFeatured: "desc" }, { titleEn: "asc" }],
+      take: 100,
       select: {
         id: true, slug: true, titleEn: true, titleTa: true,
         descriptionEn: true, descriptionTa: true, posterUrl: true,
@@ -89,7 +114,7 @@ export async function GET(request: Request) {
       genres,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    console.error("Movie catalogue fetch failed:", error);
+    logSafeError("Movie catalogue fetch failed", error);
     return NextResponse.json({ error: "Unable to load the movie catalogue." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }

@@ -15,10 +15,10 @@ MoviesHub is a legal OTT-style platform prototype for Indian-language cinema. Th
 1. Install Node.js 20 or newer.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env.local`.
-4. Create a Neon database (or local PostgreSQL) and set `DATABASE_URL`.
+4. Create a Neon database (or local PostgreSQL) and set both `DATABASE_URL` (pooled runtime URL) and `DIRECT_URL` (direct migration URL).
 5. Generate a strong secret and set `NEXTAUTH_SECRET` (at least 32 characters).
-6. Set `NEXTAUTH_URL=http://localhost:3000`.
-7. Run `npx prisma migrate deploy` after migrations are prepared, then `npm run dev`.
+6. Set `NEXTAUTH_URL=http://localhost:3000` and `NEXT_PUBLIC_APP_URL=http://localhost:3000`.
+7. Run `npx prisma migrate deploy` against a development database, then `npm run dev`.
 
 For local schema development, use `npm run prisma:migrate` and review/commit the generated migration.
 
@@ -26,29 +26,47 @@ For local schema development, use `npm run prisma:migrate` and review/commit the
 
 1. Import this GitHub repository into Vercel and select the `main` branch.
 2. Create a Neon PostgreSQL project in a region close to the Vercel deployment region.
-3. Copy Neon’s pooled connection string into Vercel's `DATABASE_URL` environment variable. Keep credentials private.
-4. Add `NEXTAUTH_SECRET` using a secure random value of at least 32 characters.
+3. Set Neon’s pooled connection string as `DATABASE_URL` and its direct connection string as `DIRECT_URL`. Keep credentials private.
+4. Add `NEXTAUTH_SECRET` using a secure random value of at least 32 characters. Optionally set a separate `RATE_LIMIT_SECRET` (also at least 32 characters); otherwise the limiter derives keys from `NEXTAUTH_SECRET`.
 5. Set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to the final HTTPS Vercel domain.
-6. Add the same variables to Preview and Production environments as appropriate.
-7. Deploy, then run the Prisma migrations against the production database using the deployment workflow or a trusted local environment.
+6. Configure `RESEND_API_KEY` and a verified-domain `RESEND_FROM_EMAIL` before relying on password reset or verification email delivery.
+7. Set `REQUIRE_EMAIL_VERIFICATION=false` initially. Enable it only after existing accounts have a reviewed verification/backfill plan.
+8. Set `CRON_SECRET` to a random value of at least 32 characters for the scheduled expired-rate-limit cleanup job.
+9. Add the variables to Preview and Production environments as appropriate. Keep Preview connected to an isolated staging database. Validate migrations on staging and confirm a current backup before production deployment.
 
 Do not commit real environment values or paste secrets into chat.
 
-## Authentication currently implemented
+## Authentication and security
 
-- Registration API validates input, normalizes email, hashes passwords with bcrypt, and stores users and their initial profile in PostgreSQL.
-- Login uses NextAuth credentials with JWT sessions.
+- Registration uses server-side Zod validation, bcrypt password hashing, and database-backed throttling.
+- Login uses NextAuth Credentials with JWT sessions, secure production cookies, account-state checks, and shared throttling.
+- Password reset uses cryptographically random tokens, SHA-256 token hashes, 30-minute expiry, single-use claims, and password-change session invalidation.
+- Logout calls the same-origin `/api/auth/revoke-session` endpoint and revokes a stable server-issued session ID before clearing the browser cookie; password changes/resets invalidate older sessions through `passwordChangedAt`.
+- Email verification uses hashed, expiring, single-use tokens. Verification is optional for sign-in until `REQUIRE_EMAIL_VERIFICATION=true` is explicitly enabled after an account migration/communication plan.
+- Password reset and verification email delivery require a Resend API key and a sender address verified with Resend. The Resend test sender is not a production sender.
+- PostgreSQL-backed rate limits are shared across application instances; HMAC-derived identifiers are stored instead of raw email/IP values. A daily authenticated cron removes expired rate-limit buckets and revoked JWT records.
 - A working database and the environment variables above are required; GitHub Pages static hosting cannot run these server APIs.
-
-Google OAuth, password reset email delivery, payments, subscription enforcement, admin authorization, and secure video delivery are not yet enabled.
 
 ## Scripts
 
 - `npm run dev`
 - `npm run build`
 - `npm run typecheck`
+- `npm run test`
+- `npm run test:integration` (requires a migrated isolated test database)
+- `npm run test:e2e` (requires Chromium and an isolated `movieshub_test` database)
 - `npm run prisma:generate`
 - `npm run prisma:migrate`
+
+## Database operations and backups
+
+The Vercel build command runs `prisma migrate deploy`. Validate each migration against staging and confirm a recent encrypted Neon backup/PITR recovery point before production deployment. Do not use `prisma migrate reset` or destructive schema commands against production. The scheduled Vercel cron at 04:00 UTC removes only rate-limit buckets expired for more than 24 hours; configure `CRON_SECRET` in Vercel for authorization. The application repository cannot verify Neon backup retention or execute a production restore; those remain operator checks.
+
+## Roadmap and validation
+
+- [MoviesHub Master Roadmap](./MOVIESHUB_MASTER_ROADMAP.md)
+- [Phase 3 Security Validation report](./PHASE_3_SECURITY_VALIDATION.md)
+- [Backup and restore runbook](./BACKUP_RESTORE_RUNBOOK.md)
 
 ## Legal and security notes
 

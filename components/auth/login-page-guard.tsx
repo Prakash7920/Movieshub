@@ -10,16 +10,23 @@ export function LoginPageGuard() {
 
   useEffect(() => {
     const requestedPath = searchParams.get("callbackUrl");
-    const destination =
-      requestedPath?.startsWith("/") && !requestedPath.startsWith("//")
-        ? requestedPath
-        : "/dashboard";
+    let destination = "/dashboard";
+    if (requestedPath?.startsWith("/") && !requestedPath.startsWith("//")) {
+      try {
+        if (new URL(requestedPath, window.location.origin).origin === window.location.origin) {
+          destination = requestedPath;
+        }
+      } catch {
+        destination = "/dashboard";
+      }
+    }
 
     let active = true;
     const redirectIfSignedIn = async () => {
       try {
         const session = await getSession();
-        if (active && session?.user) router.replace(destination);
+        const sessionUser = session?.user as unknown as { id?: string } | undefined;
+        if (active && sessionUser?.id) router.replace(destination);
       } catch {
         // Keep the login page available if the session check cannot complete.
       }

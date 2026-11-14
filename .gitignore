@@ -11,3 +11,9 @@ npm-debug.log*
 .DS_Store
 prisma/dev.db
 prisma/dev.db-journal
+
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/

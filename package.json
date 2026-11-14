@@ -12,7 +12,10 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts"
+    "prisma:seed-catalogue": "tsx prisma/seed-catalogue.ts",
+    "test": "tsx --test tests/security-primitives.test.ts",
+    "test:e2e": "playwright test",
+    "test:integration": "tsx --test tests/*.integration.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
@@ -43,6 +46,7 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.7.2",
-    "@types/bcryptjs": "^2.4.6"
+    "@types/bcryptjs": "^2.4.6",
+    "@playwright/test": "^1.55.0"
   }
 }
