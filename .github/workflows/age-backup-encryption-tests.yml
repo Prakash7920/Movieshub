@@ -1,0 +1,27 @@
+name: AGE Backup Encryption Tests
+
+on:
+  pull_request:
+    paths:
+      - "scripts/backup/**"
+      - ".github/workflows/age-backup-encryption-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  age-backup-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install AGE
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes age
+
+      - name: Run isolated encryption and tamper tests
+        run: bash scripts/backup/test-age-backup.sh
