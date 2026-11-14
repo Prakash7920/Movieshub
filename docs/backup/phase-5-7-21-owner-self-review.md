@@ -1,6 +1,6 @@
 # Phase 5.7.21 — Backup Safety Remediation and Owner Self-Review
 
-**Status:** Owner self-review complete; independent review not recorded  
+**Status:** Owner self-review complete; independent approvals recorded for PRs #8–#12  
 **Scope:** PR chain #8–#12  
 **Production status:** NO-GO; no Production change authorized
 
@@ -16,11 +16,11 @@
 
 ## Dependency alignment
 
-The stacked branch history was synchronized using merge commits that preserve each PR branch's previous head as first parent and incorporate the updated parent PR head as an additional parent. No PR was merged.
+The stacked branch history was synchronized using merge commits that preserve each PR branch's previous head as first parent and incorporate the updated parent PR head as an additional parent. PRs #8–#12 were independently reviewed and merged into their respective stacked base branches. The cumulative branch is being promoted into `main` through integration PR #13.
 
 Expected chain:
 
-`main` → PR #8 → PR #9 → PR #10 → PR #11 → PR #12
+`main` → PR #8 → PR #9 → PR #10 → PR #11 → PR #12 → integration PR #13
 
 ## Verification evidence
 
@@ -38,6 +38,6 @@ Expected chain:
 
 ## Approval boundary
 
-This is an owner self-review record, not an independent review approval. It does not authorize merging, changing Draft status, Production migration, Production backup/restore execution, secret/key changes, or deployment promotion.
+This is an owner self-review record and does not replace the independent review records on PRs #8–#12. Those PRs have been independently approved and merged into the stacked branch chain; final cumulative integration into `main` is tracked by PR #13. This document does not authorize Production migration, Production backup/restore execution, secret/key changes, or deployment promotion.
 
 Production remains on the existing OpenSSL backup and restore path until a separately approved migration satisfies every cutover gate.
