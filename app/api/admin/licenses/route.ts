@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     if (licenseResult.kind === "NOT_FOUND") {
       return NextResponse.json({ error: "Movie not found." }, { status: 404 });
     }
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "LICENSE_SAVED_PENDING", resourceType: "License", resourceId: licenseResult.license.id, metadata: { movieId: b.movieId as string } } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "LICENSE_SAVED_PENDING", resourceType: "License", resourceId: licenseResult.license.id, metadata: { movieId: b.movieId as string } }));
     return NextResponse.json({ message: "Licence details saved as PENDING. Any previously published movie was unpublished and will require fresh approval and manual publishing.", license: licenseResult.license }, { status: 201 });
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
@@ -180,7 +180,7 @@ export async function PATCH(request: Request) {
       }, { isolationLevel: "Serializable" });
       if (updated.kind === "NOT_FOUND") return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
       if (updated.kind === "INVALID") return NextResponse.json({ error: "Cannot approve: licence dates must include today and permitted countries must be recorded." }, { status: 400 });
-      await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "LICENSE_APPROVED", resourceType: "License", resourceId: movieId, metadata: { agreementReferenceRecorded: true } } });
+      await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "LICENSE_APPROVED", resourceType: "License", resourceId: movieId, metadata: { agreementReferenceRecorded: true } }));
       return NextResponse.json({ message: "Licence marked ACTIVE after the admin verification confirmation. Downloads remain disabled.", status: updated.status });
     }
 
@@ -209,7 +209,7 @@ export async function PATCH(request: Request) {
       return true;
     }, { isolationLevel: "Serializable" });
     if (!rejected) return NextResponse.json({ error: "No licence record exists for this movie." }, { status: 404 });
-    await prisma.adminAuditLog.create({ data: { actorUserId: auth.userId, action: "LICENSE_REJECTED", resourceType: "License", resourceId: movieId, metadata: { rejectionReasonRecorded: true } } });
+    await prisma.$transaction((tx) => writeAdminAuditEvent(tx, { actorUserId: auth.userId, action: "LICENSE_REJECTED", resourceType: "License", resourceId: movieId, metadata: { rejectionReasonRecorded: true } }));
     return NextResponse.json({ message: "Licence marked REJECTED. Any published movie was automatically unpublished; re-approval will require a fresh manual publish action.", status: "REJECTED" });
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "P2034") {
