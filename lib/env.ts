@@ -6,6 +6,12 @@ const isProduction = nodeEnv === "production";
 
 const baseEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
+  DIRECT_URL: z.string().min(1).optional(),
+  RATE_LIMIT_SECRET: z.string().min(32).optional(),
+  CRON_SECRET: z.string().min(32).optional(),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
+  REQUIRE_EMAIL_VERIFICATION: z.enum(["true", "false", ""]).optional().transform((value) => value === "true"),
 
   NEXTAUTH_SECRET: z.string().min(32).optional(),
   NEXTAUTH_URL: z.string().url().optional(),
@@ -44,7 +50,20 @@ const baseEnvSchema = z.object({
     }),
 });
 
-const productionSchema = baseEnvSchema.superRefine((value, context) => {\n  if (!isProduction) return;\n  for (const key of ["DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"] as const) {\n    if (!value[key]) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: "Required in production." });\n  }\n  if (value.NEXTAUTH_URL && !value.NEXTAUTH_URL.startsWith("https://")) context.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXTAUTH_URL"], message: "Production URL must use HTTPS." });\n  if (value.NEXT_PUBLIC_APP_URL && !value.NEXT_PUBLIC_APP_URL.startsWith("https://")) context.addIssue({ code: z.ZodIssueCode.custom, path: ["NEXT_PUBLIC_APP_URL"], message: "Production URL must use HTTPS." });\n});\n\nconst parsedEnv = productionSchema.safeParse(process.env);
+const productionSchema = baseEnvSchema.superRefine((value, context) => {
+  if (!isProduction) return;
+  for (const key of ["DATABASE_URL", "DIRECT_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"] as const) {
+    if (!value[key]) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: "Required in production." });
+  }
+  for (const key of ["NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"] as const) {
+    const url = value[key];
+    if (url && !url.startsWith("https://")) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: "Production URL must use HTTPS." });
+  }
+  if (value.RATE_LIMIT_SECRET && value.RATE_LIMIT_SECRET.length < 32) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["RATE_LIMIT_SECRET"], message: "Must contain at least 32 characters." });
+  }
+});
+const parsedEnv = productionSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
   throw new Error(
