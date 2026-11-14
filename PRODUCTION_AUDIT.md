@@ -1,128 +1,78 @@
-# MoviesHub Production Audit
+# NexaFilm Production Readiness Audit
+
+Last reviewed: 2026-11-14
+Scope: repository source and CI evidence on `phase-5/consolidated-security-ops`. This is a code/configuration review, not proof of a live Production deployment.
 
 ## Executive summary
-MoviesHub is a polished demo OTT front-end with a strong visual design and a reasonably complete Prisma schema, but it is not yet production-ready. The app has many demo/mock flows and several auth, admin, payment, storage, and access-control gaps that must be addressed before deployment.
 
-## Scope reviewed
-- app routes and pages
-- UI components and forms
-- Prisma schema and data models
-- environment template
-- existing quality configs
-- assistant recommendation logic
-- current production documents already in repo
+NexaFilm has a working Next.js application and a Phase 5 security-hardening draft. GitHub Actions has passed dependency installation, Prisma Client generation, TypeScript type-checking, and the Next.js production build for the validated commit. The Phase 5 pull request is still a draft and has not been merged or deployed. Production readiness is **NOT APPROVED**.
 
-## Current status by domain
+## Verified in repository
 
-### 1. Authentication and authorization
-Status: Incomplete
-- User/login/register forms are present, but they do not submit to a real server action or API route.
-- No real session management is implemented.
-- No server-side token/session validation is present.
-- No admin/user route protection exists.
-- Role-based access control is only defined in Prisma schema, not enforced in the app.
+### Authentication and session controls — implemented, deployment not verified
+- NextAuth credentials authentication uses password hashing and server-side user lookup.
+- Login attempts use PostgreSQL-backed rate limiting.
+- JWT sessions have a bounded lifetime and support server-side revocation checks.
+- Registration, password reset/change, email verification, and session-revocation API routes are present.
+- Production environment validation requires database URLs, NextAuth secret/URL, and HTTPS application URLs.
+- Email delivery depends on valid Resend configuration and has not been proven in Production.
 
-### 2. Database and validation
-Status: Partially complete
-- Prisma schema is rich and structured.
-- Some indexes/uniqueness constraints exist.
-- There is no centralized DB service layer for app queries and mutations.
-- Input validation is present only on client form components, not enforced server-side for all routes and APIs.
-- No consistent API error contract is defined.
+### Admin authorization and audit — implemented for reviewed endpoints
+- The admin movie and licence APIs perform server-side session and database role checks for ADMIN/SUPERADMIN users.
+- Write endpoints apply same-origin and JSON content-type/body-size guards.
+- Movie and licence mutations emit admin audit events.
+- The new AdminAuditLog table has an append-only database trigger that rejects UPDATE and DELETE operations.
+- Audit event persistence is a separate database transaction after the business mutation in the current route handlers; it is not yet atomic with the underlying mutation. A failed audit write can therefore occur after the business change has committed. Treat this as a remaining hardening item.
+- This review does not establish that every admin page or every API route is protected.
 
-### 3. Movie and content access workflow
-Status: Partial
-- Movie listing/detail/watch pages exist.
-- Premium gating is present on the UI, but there is no proper server-side access check for premium-only content.
-- Video access relies on mock/demo data and local toggles rather than real signed URLs.
-- License expiry logic is modeled in Prisma but not applied to access decisions in a central service.
+### Application security configuration
+- Security response headers are configured in Next.js, including HSTS in production.
+- Request guard, rate-limit, token, and safe-log helpers are present.
+- These source settings still require verification against the deployed Vercel edge response.
 
-### 4. Payment and subscription
-Status: Incomplete
-- Subscription page exists.
-- Payment provider abstraction is partially present in `lib/payments`, but not tied to secure server-side verification.
-- No webhook verification is implemented.
-- No server-side secret enforcement is present.
+### CI evidence
+- GitHub Actions workflow run `43565331476` completed successfully.
+- Successful steps: install dependencies, generate Prisma Client, TypeScript type-check, and Next.js build.
+- The workflow did not establish that all integration or browser E2E tests pass. Those require their own test execution and suitable isolated test environment.
 
-### 5. AI recommendation engine
-Status: Partial
-- Assistant page and recommendation logic exist.
-- Recommendation scoring is local and demo-based.
-- No production AI provider abstraction is present.
-- No fallback service contract exists for production AI.
+## Explicitly not implemented or not verified
 
-### 6. Admin & operational features
-Status: Incomplete
-- Admin pages are not present as production routes.
-- No secure admin dashboard or role-gated admin APIs.
-- No audit log placeholder is wired into admin operations.
+### Payments — intentionally disabled; no webhook route found
+- The subscription checkout UI explicitly keeps checkout disabled until authenticated order creation, gateway integration, signature verification, and webhook reconciliation exist.
+- No Razorpay/payment webhook handler was found in the reviewed repository.
+- Do not enable paid checkout or configure live payment credentials until order creation, signature verification, idempotent webhook processing, reconciliation, and negative-path tests are implemented and reviewed.
 
-### 7. Error handling and UX resilience
-Status: Partial
-- Loading and error states exist for the assistant page.
-- Not-found and unauthorized pages are missing.
-- Global error boundary is missing.
-- Empty states are incomplete in key flows.
+### Monitoring and incident response
+- No production error-tracking/monitoring provider or alert delivery was verified in this code review.
+- Operational alert routing, retention, on-call ownership, and a live incident exercise remain unverified.
 
-### 8. Security posture
-Status: Incomplete
-- No verified auth middleware or RBAC enforcement.
-- No rate-limit interfaces for auth, AI, or payment endpoints.
-- No server-side secret validation pattern.
-- No file/URL sanitization enforcement in app flows.
-- No explicit audit logging or sanitization of user-generated content.
+### Database and backup operations
+- The Phase 5 migration is present in the branch but has not been applied to Production.
+- Neon PITR configuration and a successful isolated restore drill require external evidence.
+- Do not run migrations or restore tests against Production as part of this PR validation.
 
-### 9. Production deployment readiness
-Status: Not ready
-- No full deployment pipeline or hosting config is implemented.
-- No production video storage/CDN setup is implemented.
-- No monitoring abstraction is configured.
-- No production error tracking is wired up.
+### Media and licensing
+- Admin API checks require an active, date-valid licence and territories before publishing.
+- Production signed-media URL issuance, storage/CDN access policy, and end-to-end playback authorization remain unverified.
 
-## Findings checklist
-- [x] Basic app shell and routes exist
-- [x] Prisma schema is defined and reasonably complete
-- [x] Environment template exists
-- [x] AI assistant exists
-- [x] Subscription and auth UX exists
-- [ ] Real auth and session flow
-- [ ] Protected admin and user routes
-- [ ] Server-side validation and APIs
-- [ ] Payment verification + webhooks
-- [ ] Real video access protection
-- [ ] Production-grade monitoring and logging
-- [ ] CI and automated test pipeline
+## Production release gates
 
-## Required environment variables
-- DATABASE_URL
-- NEXTAUTH_SECRET
-- NEXTAUTH_URL
-- GOOGLE_CLIENT_ID
-- GOOGLE_CLIENT_SECRET
-- RAZORPAY_KEY_ID
-- RAZORPAY_KEY_SECRET
-- RAZORPAY_WEBHOOK_SECRET
-- AI_API_KEY
-- NEXT_PUBLIC_APP_URL
-- STORAGE_BUCKET
-- STORAGE_ENDPOINT
-- STORAGE_ACCESS_KEY
-- STORAGE_SECRET_KEY
+- [ ] Phase 5 PR independently reviewed and approved.
+- [ ] Prisma migrations validated against an isolated database; Production migration separately approved.
+- [ ] Audit event writes made atomic with business mutations and failure behavior tested.
+- [ ] Integration and browser E2E suites pass against isolated test services.
+- [ ] Payment order creation, signature verification, webhook idempotency/reconciliation and tests complete before enabling checkout.
+- [ ] Resend delivery tested with verified sender/domain and production secrets.
+- [ ] Monitoring, alert routing, and incident ownership verified.
+- [ ] Vercel deployed response headers checked externally.
+- [ ] Neon PITR and isolated backup restore drill evidenced.
+- [ ] Media signing and authorization verified end-to-end.
+- [ ] Final release approval recorded; no Production rollout is authorized by this audit.
 
-## Security risks
-- Mock auth flows can be accidentally deployed as real auth.
-- Client-side toggles for premium access do not enforce server-side authorization.
-- No server-side checks prevent unauthorized admin actions.
-- No rate limiting or secret guarding in auth/payment/AI operations.
-- Private video URLs and media access are not yet production secured.
+## Environment variables
 
-## Recommended next steps
-1. Implement real auth with Prisma + NextAuth or equivalent server session strategy.
-2. Add protected middleware and server-side RBAC enforcement.
-3. Replace mock data calls with server access layers.
-4. Add validation and JSON error handling for every API route.
-5. Add secure payment and media service integrations.
-6. Add tests and CI before production deployment.
+The repository template documents database, NextAuth, rate-limit, cron, email, OAuth, payment, media, AI, and storage settings. Presence in the template does not prove that a corresponding secret is configured or valid in Vercel. Never place secret values in this document or commit them to Git.
 
-## Production completion status
-Not yet production-ready.
+## Final status
+
+**NOT PRODUCTION READY.** CI build/type validation is green, but Phase 5 remains a draft. Production secrets, database migration, monitoring, email, payment, backup/restore, media authorization, independent review, and release approval are separate gates.
