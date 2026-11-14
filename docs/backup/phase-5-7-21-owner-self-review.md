@@ -16,11 +16,13 @@
 
 ## Dependency alignment
 
-The stacked branch history was synchronized using merge commits that preserve each PR branch's previous head as first parent and incorporate the updated parent PR head as an additional parent. PRs #8–#12 were independently reviewed and merged into their respective stacked base branches. The cumulative branch is being promoted into `main` through integration PR #13.
+The stacked branch history was synchronized using merge commits that preserve each PR branch's previous head as first parent and incorporate the updated parent PR head as an additional parent. PRs #8–#12 were independently reviewed and merged into their respective stacked base branches. The cumulative chain was then integrated into `main` through PR #13, which was independently approved and merged on 2026-11-14.
 
-Expected chain:
+Completed integration sequence:
 
-`main` → PR #8 → PR #9 → PR #10 → PR #11 → PR #12 → integration PR #13
+`main` ← merged PR #13 ← cumulative PR #8–#12 implementation chain
+
+Final verified `main` merge commit: `5e084998dd66b1a3a9efa2b74e52cdd7b7caa2be`.
 
 ## Verification evidence
 
@@ -34,10 +36,12 @@ Expected chain:
 - PR #10 Vercel validation: successful combined status on the reviewed head.
 - PR #11 documentation preview: Vercel PASS — https://vercel.com/nexa-cead/movieshub/AAc7hSxjogv74vJoAvmvLMP3eZE8
 - PR #12 owner-review evidence preview: Vercel PASS — https://vercel.com/nexa-cead/movieshub/Be315dnKQmMrJuRNmsyEL6rNURuS
-- PR #12 is documentation-only at its current PR diff; no GitHub Actions run is expected for that documentation-only change.
+- PR #12 is documentation-only at its reviewed PR diff; no GitHub Actions run was expected for that documentation-only change.
+- PR #13 cumulative integration: independent approval recorded; AGE Recovery Key Lifecycle Tests, AGE Backup Encryption Tests, Dual-Format Backup Restore Rehearsal, and Vercel validation all passed on the final PR head before merge.
+- PR #13 merged on 2026-11-14; `main` was verified at merge commit `5e084998dd66b1a3a9efa2b74e52cdd7b7caa2be`.
 
 ## Approval boundary
 
-This is an owner self-review record and does not replace the independent review records on PRs #8–#12. Those PRs have been independently approved and merged into the stacked branch chain; final cumulative integration into `main` is tracked by PR #13. This document does not authorize Production migration, Production backup/restore execution, secret/key changes, or deployment promotion.
+This is an owner self-review record and does not replace the independent review records on PRs #8–#13. PRs #8–#12 were independently approved and merged through the stacked branch chain; PR #13 was independently approved and merged to integrate that chain into `main`. This document does not authorize Production migration, Production backup/restore execution, secret/key changes, or deployment promotion.
 
 Production remains on the existing OpenSSL backup and restore path until a separately approved migration satisfies every cutover gate.
